@@ -42,8 +42,8 @@ class SimpleCNN(nn.Module):
         
         x = x.view(x.size(0), -1)  # Flatten the tensor
         x = self.fc(x)
-        # if not self.train:
-        #     x = self.softmax(x)
+        if not self.train:
+            x = self.softmax(x)
         return x
     
     def save(self, filename):
@@ -59,11 +59,12 @@ class SimpleCNN(nn.Module):
         }
         with open(filename+".cfg", 'w') as f:
             yaml.dump(config, f)
-        torch.save(self.state_dict,filename+".pth")
+        torch.save(self.state_dict(),filename+".pth")
 
     @classmethod
     def load(cls, filename):
-        with open(filename, 'r') as file:
+        with open(filename+".cfg", 'r') as file:
             config = yaml.load(file, Loader=yaml.FullLoader)
         model = cls(**config)
-        return model.load_state_dict(torch.load(filename+".pth"))
+        model.load_state_dict(torch.load(filename+".pth"))
+        return model

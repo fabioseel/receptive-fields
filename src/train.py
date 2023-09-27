@@ -20,7 +20,7 @@ with open(filepath, 'r') as file:
     config = yaml.load(file, Loader=yaml.FullLoader)
 
 model = SimpleCNN(**config)
-optimizer = optim.Adam(model.parameters(), lr=0.01)
+optimizer = optim.Adam(model.parameters(), lr=0.001)
 
 
 train_data = datasets.CIFAR10(root="../data", train=True, download=True, transform=transforms.ToTensor())
