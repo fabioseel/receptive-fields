@@ -42,7 +42,7 @@ class SimpleCNN(nn.Module):
         
         x = x.view(x.size(0), -1)  # Flatten the tensor
         x = self.fc(x)
-        if not self.train:
+        if not self.training:
             x = self.softmax(x)
         return x
     
