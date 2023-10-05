@@ -24,9 +24,17 @@ def dataset_average(model: nn.Module, dataloader: DataLoader, desired_output = t
 
     return normalizeZeroOne(weighted_sum)
 
-def effective_receptive_field(model:nn.Module, output_signal:torch.tensor, n_batch:int=2048):
+def effective_receptive_field(model:nn.Module, n_batch:int=2048):
+    num_outputs, input_size = get_input_output_shape(model)
+    results = torch.zeros((num_outputs, *input_size))
+    for i in tqdm(range(num_outputs)):
+        output_signal = torch.zeros(num_outputs)
+        output_signal[i] = 1
+        results[i] = single_effective_receptive_field(model, output_signal, input_size, n_batch)
+    return results
+
+def single_effective_receptive_field(model:nn.Module, output_signal:torch.tensor, input_size:torch.Size, n_batch:int=2048):
     model.eval()
-    _out_channels, input_size = get_input_output_shape(model)
     input_tensor = torch.randn((n_batch, *input_size), requires_grad=True)
     output = model(input_tensor)
     target_output = output * output_signal
@@ -83,15 +91,21 @@ def get_input_output_shape(model: nn.Sequential):
     input_size = (in_channels, in_size, in_size)
     return num_outputs, input_size
 
+def backprop_maximization(model:nn.Module, n_iter:int=2048, batch_size=16, reduction=True):
+    num_outputs, input_size = get_input_output_shape(model)
+    results = torch.zeros((num_outputs, *input_size))
+    for i in tqdm(range(num_outputs)):
+        output_signal = torch.zeros(num_outputs)
+        output_signal[i] = 1
+        results[i] = single_backprop_maximization(model, output_signal, input_size, n_iter, batch_size, reduction)
+    return results
 
-def backprop_maximization(model:nn.Module, output_signal:torch.tensor, n_iter:int=2048, batch_size=16, reduction=True):
+def single_backprop_maximization(model:nn.Module, output_signal:torch.tensor, input_size: torch.Size, n_iter:int=2048, batch_size=16, reduction=True):
     model.eval()
     criterion = nn.CrossEntropyLoss()
 
-    num_outputs, input_size = get_input_output_shape(model)
-
     input_tensor = torch.randn((batch_size,*input_size), requires_grad=True)
-    for i in range(n_iter):
+    for i in tqdm(range(n_iter)):
         input_tensor.requires_grad = True
         output = model(input_tensor.repeat(1,1,1,1))
         loss = criterion(output, output_signal.repeat(batch_size,1))
