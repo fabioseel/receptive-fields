@@ -11,6 +11,7 @@ from pathlib import Path
 
 parser = argparse.ArgumentParser()
 parser.add_argument('config')
+parser.add_argument('batch_size', type=int)
 
 args = parser.parse_args()
 
@@ -25,8 +26,8 @@ optimizer = optim.Adam(model.parameters(), lr=0.001)
 
 train_data = datasets.CIFAR10(root="../data", train=True, download=True, transform=transforms.ToTensor())
 test_data = datasets.CIFAR10(root="../data", train=False, download=True, transform=transforms.ToTensor())
-train_loader = DataLoader(train_data, batch_size=16384, shuffle=True)
-test_loader = DataLoader(test_data, batch_size=16384, shuffle=False)
+train_loader = DataLoader(train_data, batch_size=args.batch_size, shuffle=True)
+test_loader = DataLoader(test_data, batch_size=args.batch_size, shuffle=False)
 
 prev_best_acc = 0
 early_stop_epochs = 5

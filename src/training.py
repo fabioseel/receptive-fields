@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
+from tqdm import tqdm
 
 def train(model: nn.Module, optimizer: optim.Optimizer, train_loader: DataLoader):
     # Define the loss function and optimizer
@@ -12,7 +13,7 @@ def train(model: nn.Module, optimizer: optim.Optimizer, train_loader: DataLoader
     running_loss = 0.0
     
     epoch_correct = 0
-    for i, (inputs, labels) in enumerate(train_loader):
+    for i, (inputs, labels) in tqdm(enumerate(train_loader), total=(len(train_loader))):
         optimizer.zero_grad()  # Zero the parameter gradients
         
         # Forward pass
@@ -37,7 +38,7 @@ def validate(model: nn.Module, dataloader: DataLoader):
     total = 0
     
     with torch.no_grad():
-        for inputs, labels in dataloader:
+        for inputs, labels in tqdm(dataloader, total=(len(dataloader))):
             outputs = model(inputs)
             total += labels.size(0)
             correct += num_correct(outputs, labels)
