@@ -4,6 +4,7 @@ import torch.nn as nn
 from torch.nn.common_types import _size_2_t
 import yaml
 import math
+from os import path
 
 class SimpleCNN(nn.Module):
     def __init__(self, img_size, num_classes, num_layers=3, in_channels=3, num_channels=16,
@@ -55,6 +56,19 @@ class SimpleCNN(nn.Module):
             x = self.softmax(x)
         return x
     
+    def get_sequential(self):
+        seq = nn.Sequential()
+        seq.append(self.conv1)
+        seq.append(self.relu)
+
+        for conv_layer in self.extra_conv_layers:
+            seq.append(conv_layer)
+            seq.append(self.relu)
+        seq.append(nn.Flatten())
+        seq.append(self.fc)
+        seq.append(self.softmax)
+        return seq
+    
     def save(self, filename):
         config = {
             'img_size': self.img_size,
@@ -76,7 +90,9 @@ class SimpleCNN(nn.Module):
         with open(filename+".cfg", 'r') as file:
             config = yaml.load(file, Loader=yaml.FullLoader)
         model = cls(**config)
-        model.load_state_dict(torch.load(filename+".pth"))
+        weights_file = filename+".pth"
+        if(path.exists(weights_file)):
+            model.load_state_dict(torch.load(weights_file))
         return model
     
 class SeparableConv2d(nn.Module):
