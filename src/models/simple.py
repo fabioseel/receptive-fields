@@ -5,8 +5,9 @@ import torch
 import torch.nn as nn
 import yaml
 
+from models.base_model import BaseModel
 
-class SimpleCNN(nn.Module):
+class SimpleCNN(BaseModel):
     def __init__(
         self,
         img_size,
@@ -93,8 +94,8 @@ class SimpleCNN(nn.Module):
         seq.append(self.softmax)
         return seq
 
-    def save(self, filename):
-        config = {
+    def config(self) -> dict:
+        return {
             "type" : "simple",
             "config" : {
             "img_size": self.img_size,
@@ -107,19 +108,6 @@ class SimpleCNN(nn.Module):
             "dilation": self.dilation,
             "separable": self.separable,
         }}
-        with open(filename + ".cfg", "w") as f:
-            yaml.dump(config, f)
-        torch.save(self.state_dict(), filename + ".pth")
-
-    @classmethod
-    def load(cls, filename):
-        with open(filename + ".cfg", "r") as file:
-            config = yaml.load(file, Loader=yaml.FullLoader)
-        model = cls(**config)
-        weights_file = filename + ".pth"
-        if path.exists(weights_file):
-            model.load_state_dict(torch.load(weights_file))
-        return model
 
 
 class SeparableConv2d(nn.Module):

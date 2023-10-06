@@ -5,11 +5,12 @@ import torch
 import yaml
 from os import path
 import math
+from models.base_model import BaseModel
 
 def calc_same_pad(i: int, k: int, s: int=1, d: int = 1) -> int:
         return max(math.ceil(((s - 1) * i - s + k) / 2), 0)
 
-class LindseyNet(nn.Module):
+class LindseyNet(BaseModel):
     def __init__(
         self,
         img_size,
@@ -67,17 +68,27 @@ class LindseyNet(nn.Module):
         self.fc.append(nn.Linear(vvs_channels*img_size**2, first_fc))
         self.fc.append(nn.ReLU())
         self.fc.append(nn.Linear(first_fc, num_classes))
+        self.softmax = nn.Softmax()
 
     def forward(self, x):
         # TODO: Add noise potentially
         retina_out = self.retina(x)
         x = self.vvs(retina_out)
         x = self.fc(x)
+        if not self.training:
+            x = self.softmax(x)
         return x
     
-
-    def save(self, filename):
-        config = {
+    def get_sequential(self):
+        seq = nn.Sequential()
+        seq.extend(self.retina)
+        seq.extend(self.vvs)
+        seq.extend(self.fc)
+        seq.append(self.softmax) # TODO: Proper handling with the softmax...
+        return seq
+    
+    def config(self) -> dict:
+        return {
             "type" : "lindsey",
             "config" : {
             "img_size": self.img_size,
@@ -92,16 +103,3 @@ class LindseyNet(nn.Module):
             "vvs_channels" :self.vvs_channels,
             "first_fc" : self.first_fc
         }}
-        with open(filename + ".cfg", "w") as f:
-            yaml.dump(config, f)
-        torch.save(self.state_dict(), filename + ".pth")
-
-    @classmethod
-    def load(cls, filename):
-        with open(filename + ".cfg", "r") as file:
-            config = yaml.load(file, Loader=yaml.FullLoader)
-        model = cls(**config['config'])
-        weights_file = filename + ".pth"
-        if path.exists(weights_file):
-            model.load_state_dict(torch.load(weights_file))
-        return model
