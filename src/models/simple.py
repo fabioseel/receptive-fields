@@ -95,6 +95,8 @@ class SimpleCNN(nn.Module):
 
     def save(self, filename):
         config = {
+            "type" : "simple",
+            "config" : {
             "img_size": self.img_size,
             "num_classes": self.num_classes,
             "num_layers": self.num_layers,
@@ -104,7 +106,7 @@ class SimpleCNN(nn.Module):
             "stride": self.stride,
             "dilation": self.dilation,
             "separable": self.separable,
-        }
+        }}
         with open(filename + ".cfg", "w") as f:
             yaml.dump(config, f)
         torch.save(self.state_dict(), filename + ".pth")
