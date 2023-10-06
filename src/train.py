@@ -15,6 +15,7 @@ import torch
 parser = argparse.ArgumentParser()
 parser.add_argument("config")
 parser.add_argument("batch_size", type=int)
+parser.add_argument("lr", type=float)
 
 args = parser.parse_args()
 
@@ -27,7 +28,7 @@ if config['type'] == "lindsey":
     model = LindseyNet(**config['config'])
 else:
     model = SimpleCNN(**config['config'])
-optimizer = optim.Adam(model.parameters(), lr=0.001)
+optimizer = optim.Adam(model.parameters(), lr=args.lr)
 
 
 train_data = datasets.CIFAR10(
