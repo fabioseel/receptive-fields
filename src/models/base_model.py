@@ -22,7 +22,7 @@ class BaseModel(nn.Module, ABC):
         config = self.config()
         with open(filename + ".cfg", "w") as f:
             yaml.dump(config, f)
-        torch.save(self.cpu().state_dict(), filename + ".pth")
+        torch.save(self.state_dict(), filename + ".pth")
 
     @classmethod
     def load(cls, filename):
@@ -34,6 +34,5 @@ class BaseModel(nn.Module, ABC):
             try:
                 model.load_state_dict(torch.load(weights_file))
             except:
-                model.to('cuda')
-                model.load_state_dict(torch.load(weights_file))
+                model.load_state_dict(torch.load(weights_file, map_location=torch.device("cpu")))
         return model

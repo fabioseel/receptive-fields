@@ -68,7 +68,7 @@ class LindseyNet(BaseModel):
         self.fc.append(nn.Linear(vvs_channels*img_size**2, first_fc))
         self.fc.append(nn.ReLU())
         self.fc.append(nn.Linear(first_fc, num_classes))
-        self.softmax = nn.Softmax()
+        self.softmax = nn.Softmax(dim=-1)
 
     def forward(self, x):
         # TODO: Add noise potentially

@@ -12,13 +12,13 @@ from training import train, validate
 import torch
 
 parser = argparse.ArgumentParser()
-parser.add_argument("config")
+parser.add_argument("config", type=str)
 parser.add_argument("batch_size", type=int)
 parser.add_argument("lr", type=float)
 
 args = parser.parse_args()
 
-filepath = Path(args.config)
+filepath = args.config
 
 model = load_model(filepath)
 optimizer = optim.RMSprop(model.parameters(), lr=args.lr, weight_decay=1e-6)
@@ -47,7 +47,7 @@ while not early_stop:
     if accuracy > prev_best_acc:
         prev_best_acc = accuracy
         inc_count = 0
-        model.save(filepath.with_suffix("").as_posix())
+        model.save(filepath)
     else:
         inc_count += 1
         if inc_count > early_stop_epochs:
