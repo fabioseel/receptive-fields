@@ -5,7 +5,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 
-def train(model: nn.Module, optimizer: optim.Optimizer, train_loader: DataLoader):
+def train(model: nn.Module, optimizer: optim.Optimizer, train_loader: DataLoader, device: torch.device):
     # Define the loss function and optimizer
     criterion = nn.CrossEntropyLoss()
 
@@ -15,6 +15,8 @@ def train(model: nn.Module, optimizer: optim.Optimizer, train_loader: DataLoader
 
     epoch_correct = 0
     for i, (inputs, labels) in tqdm(enumerate(train_loader), total=(len(train_loader))):
+        inputs = inputs.to(device)
+        labels = labels.to(device)
         optimizer.zero_grad()  # Zero the parameter gradients
 
         # Forward pass
@@ -34,7 +36,7 @@ def train(model: nn.Module, optimizer: optim.Optimizer, train_loader: DataLoader
     )
 
 
-def validate(model: nn.Module, dataloader: DataLoader):
+def validate(model: nn.Module, dataloader: DataLoader, device: torch.device):
     # Evaluate the model on the test data
     model.eval()  # Set the model to evaluation mode
     correct = 0
@@ -42,6 +44,8 @@ def validate(model: nn.Module, dataloader: DataLoader):
 
     with torch.no_grad():
         for inputs, labels in tqdm(dataloader, total=(len(dataloader))):
+            inputs = inputs.to(device)
+            labels = labels.to(device)
             outputs = model(inputs)
             total += labels.size(0)
             correct += num_correct(outputs, labels)

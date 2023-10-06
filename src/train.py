@@ -10,6 +10,7 @@ from torchvision import datasets, transforms
 from models.simple import SimpleCNN
 from models.lindsey import LindseyNet
 from training import train, validate
+import torch
 
 parser = argparse.ArgumentParser()
 parser.add_argument("config")
@@ -42,9 +43,13 @@ prev_best_acc = 0
 early_stop_epochs = 5
 early_stop = False
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print("Using", device)
+model.to(device)
+
 while not early_stop:
-    train(model, optimizer, train_loader)
-    accuracy = validate(model, test_loader)
+    train(model, optimizer, train_loader, device)
+    accuracy = validate(model, test_loader, device)
     if accuracy > prev_best_acc:
         prev_best_acc = accuracy
         inc_count = 0
