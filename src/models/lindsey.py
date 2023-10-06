@@ -4,7 +4,10 @@ from torch import nn
 import torch
 import yaml
 from os import path
+import math
 
+def calc_same_pad(i: int, k: int, s: int=1, d: int = 1) -> int:
+        return max(math.ceil(((s - 1) * i - s + k) / 2), 0)
 
 class LindseyNet(nn.Module):
     def __init__(
@@ -36,7 +39,7 @@ class LindseyNet(nn.Module):
         self.first_fc = first_fc
 
         # Define Retina
-        self.retina = nn.Sequential() # TODO: Same padding used in there code!
+        self.retina = nn.Sequential()
         for layer in range(retina_layers):
             _in_channels = retina_channels if layer != 0 else in_channels
 
@@ -46,7 +49,8 @@ class LindseyNet(nn.Module):
                 _out_channels = bottleneck_channels
                 _stride =  retina_out_stride
 
-            self.retina.append(nn.Conv2d(_in_channels, _out_channels, kernel_size=kernel_size, stride=_stride))
+            _padding = calc_same_pad(img_size, kernel_size, _stride)
+            self.retina.append(nn.Conv2d(_in_channels, _out_channels, kernel_size=kernel_size, stride=_stride, padding=_padding))
             self.retina.append(nn.ReLU())
 
         # Define VVS
@@ -54,7 +58,8 @@ class LindseyNet(nn.Module):
         for layer in range(vvs_layers):
             _in_channels = vvs_channels if layer != 0 else bottleneck_channels
 
-            self.vvs.append(nn.Conv2d(_in_channels, vvs_channels, kernel_size=kernel_size))
+            _padding = calc_same_pad(img_size, kernel_size)
+            self.vvs.append(nn.Conv2d(_in_channels, vvs_channels, kernel_size=kernel_size, padding=_padding))
             self.vvs.append(nn.ReLU())
 
         self.fc = nn.Sequential()
@@ -67,7 +72,7 @@ class LindseyNet(nn.Module):
         retina_out = self.retina(x)
         x = self.vvs(retina_out)
         x = self.fc(x)
-        return x, retina_out
+        return x
     
 
     def save(self, filename):

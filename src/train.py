@@ -22,7 +22,7 @@ filepath = Path(args.config)
 with open(filepath, "r") as file:
     config = yaml.load(file, Loader=yaml.FullLoader)
 
-if config['type'] is "lindsey":
+if config['type'] == "lindsey":
     model = LindseyNet(**config['config'])
 else:
     model = SimpleCNN(**config['config'])
