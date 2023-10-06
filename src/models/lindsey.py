@@ -65,6 +65,7 @@ class LindseyNet(nn.Module):
         self.fc = nn.Sequential()
         self.fc.append(nn.Flatten())
         self.fc.append(nn.Linear(vvs_channels*img_size**2, first_fc))
+        self.fc.append(nn.ReLU())
         self.fc.append(nn.Linear(first_fc, num_classes))
 
     def forward(self, x):
