@@ -19,7 +19,7 @@ class BaseModel(nn.Module, ABC):
         pass
 
     def save(self, filename):
-        config = self.config
+        config = self.config()
         with open(filename + ".cfg", "w") as f:
             yaml.dump(config, f)
         torch.save(self.cpu().state_dict(), filename + ".pth")
@@ -31,5 +31,9 @@ class BaseModel(nn.Module, ABC):
         model = cls(**config['config'])
         weights_file = filename + ".pth"
         if path.exists(weights_file):
-            model.load_state_dict(torch.load(weights_file))
+            try:
+                model.load_state_dict(torch.load(weights_file))
+            except:
+                model.to('cuda')
+                model.load_state_dict(torch.load(weights_file))
         return model
