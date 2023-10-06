@@ -7,7 +7,8 @@ import yaml
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 
-from models import SimpleCNN
+from models.simple import SimpleCNN
+from models.lindsey import LindseyNet
 from training import train, validate
 
 parser = argparse.ArgumentParser()
@@ -21,7 +22,10 @@ filepath = Path(args.config)
 with open(filepath, "r") as file:
     config = yaml.load(file, Loader=yaml.FullLoader)
 
-model = SimpleCNN(**config)
+if config['type'] is "lindsey":
+    model = LindseyNet(**config['config'])
+else:
+    model = SimpleCNN(**config['config'])
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 
 
