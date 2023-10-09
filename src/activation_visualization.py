@@ -10,6 +10,12 @@ from tqdm import tqdm
 def normalizeZeroOne(input):
     return (input - input.min()) / (input.max() - input.min())
 
+def sum_collapse_output(out_tensor):
+    if len(out_tensor.shape) > 2:
+        sum_dims = [2+i for i in range(len(out_tensor.shape)-2)]
+        out_tensor = torch.sum(out_tensor, dim=sum_dims)
+    return out_tensor
+
 
 def dataset_average(
     model: nn.Module, dataloader: DataLoader, desired_output=torch.Tensor
@@ -29,9 +35,27 @@ def dataset_average(
 
     return normalizeZeroOne(weighted_sum)
 
+def fix_model(model: nn.Sequential):
+    new_model = nn.Sequential()
+    linear = [isinstance(module, nn.Linear) for module in model]
+    if not np.any(linear):
+        for module in model:
+            if isinstance(module, nn.Conv2d):
+                new_conv = nn.Conv2d(module.in_channels, module.out_channels, module.kernel_size, module.stride,
+                                     padding=0, dilation=module.dilation, groups=module.groups)
+                new_conv.weight = module.weight
+                new_conv.bias = module.bias
+                new_model.append(new_conv)
+            else:
+                new_model.append(module)
+    return new_model
 
-def effective_receptive_field(model: nn.Module, n_batch: int = 2048):
+def effective_receptive_field(model: nn.Sequential, n_batch: int = 2048):
+    '''
+    for n_batch = 1 use empty input
+    '''
     num_outputs, input_size = get_input_output_shape(model)
+    model = fix_model(model)
     results = torch.zeros((num_outputs, *input_size))
     for i in tqdm(range(num_outputs)):
         output_signal = torch.zeros(num_outputs)
@@ -43,14 +67,21 @@ def effective_receptive_field(model: nn.Module, n_batch: int = 2048):
 
 
 def single_effective_receptive_field(
-    model: nn.Module,
+    model: nn.Sequential,
     output_signal: torch.tensor,
     input_size: torch.Size,
     n_batch: int = 2048,
 ):
+    '''
+    for n_batch = 1 use empty input
+    '''
     model.eval()
-    input_tensor = torch.randn((n_batch, *input_size), requires_grad=True)
+    if n_batch==1:
+        input_tensor = torch.full((n_batch, *input_size), fill_value=0.5, requires_grad=True)
+    else:
+        input_tensor = torch.randn((n_batch, *input_size), requires_grad=True)
     output = model(input_tensor)
+    output = sum_collapse_output(output)
     target_output = output * output_signal
     target_output.sum().backward()
     eff_rf = input_tensor.grad.sum(0)
@@ -62,7 +93,7 @@ def _activation_triggered_average(model: nn.Module, n_batch: int = 2048):
     _out_channels, input_size = get_input_output_shape(model)
     input_tensor = torch.randn((n_batch, *input_size), requires_grad=False)
     output = model(input_tensor)
-    output = output.squeeze()
+    output = sum_collapse_output(output)
     input_tensor = input_tensor[:, None, :, :, :].expand(
         -1, output.shape[1], -1, -1, -1
     )
@@ -85,12 +116,14 @@ def activation_triggered_average(
 
 def get_input_output_shape(model: nn.Sequential):
     _first = 0
+    down_stream_linear = False
     for layer in reversed(model):
         _first += 1
         if isinstance(layer, nn.Linear):
             num_outputs = layer.out_features
             in_channels = 1
             in_size = layer.in_features
+            down_stream_linear = True
             break
         elif isinstance(layer, nn.Conv2d):
             num_outputs = layer.out_channels
@@ -102,12 +135,13 @@ def get_input_output_shape(model: nn.Sequential):
         if isinstance(layer, nn.Linear):
             in_channels = 1
             in_size = layer.in_features
+            down_stream_linear = True
         elif isinstance(layer, nn.Conv2d):
             in_channels = layer.in_channels
             in_size = math.sqrt(in_size / layer.out_channels)
             in_size = (
                 (in_size - 1) * layer.stride[0]
-                - 2 * layer.padding[0]
+                - 2 * layer.padding[0] * down_stream_linear
                 + layer.kernel_size[0]
             )
             in_size = in_size**2 * in_channels
