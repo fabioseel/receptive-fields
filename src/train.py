@@ -24,11 +24,14 @@ model = load_model(filepath)
 optimizer = optim.RMSprop(model.parameters(), lr=args.lr, weight_decay=1e-6)
 
 
+transf = [transforms.ToTensor()]
+if model.in_channels == 1:
+    transf.append(transforms.Grayscale())
 train_data = datasets.CIFAR10(
-    root="../data", train=True, download=True, transform=transforms.ToTensor()
+    root="../data", train=True, download=True, transform=transforms.Compose(transf)
 )
 test_data = datasets.CIFAR10(
-    root="../data", train=False, download=True, transform=transforms.ToTensor()
+    root="../data", train=False, download=True, transform=transforms.Compose(transf)
 )
 train_loader = DataLoader(train_data, batch_size=args.batch_size, shuffle=True, num_workers=4, prefetch_factor=4)
 test_loader = DataLoader(test_data, batch_size=args.batch_size, shuffle=False, num_workers=4, prefetch_factor=4)
