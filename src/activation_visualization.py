@@ -48,9 +48,12 @@ def remove_padding(model: nn.Sequential):
                 new_model.append(new_conv)
             else:
                 new_model.append(module)
+    else:
+        new_model = model
+    
     return new_model
 
-def effective_receptive_field(model: nn.Sequential, n_batch: int = 2048, fill_value=None, rf_size=None):
+def effective_receptive_field(model: nn.Sequential, n_batch: int = 2048, fill_value: float=None, rf_size: tuple=None):
     '''
     if fill value is given a single 'empty' input of that value is used
     '''
@@ -73,7 +76,7 @@ def single_effective_receptive_field(
     output_signal: torch.tensor,
     input_size: torch.Size,
     n_batch: int = 2048,
-    fill_value=None
+    fill_value: float =None
 ):
     '''
     check the doc of the parent method (effective_receptive_field) for reference
@@ -146,7 +149,7 @@ def get_input_output_shape(model: nn.Sequential):
             in_channels = layer.in_channels
             in_size = math.sqrt(in_size / layer.out_channels)
             in_size = (
-                (in_size - 1) * layer.stride[0]
+                (in_size - 1) * layer.stride[0] * layer.dilation[0]
                 - 2 * layer.padding[0] * down_stream_linear
                 + layer.kernel_size[0]
             )
