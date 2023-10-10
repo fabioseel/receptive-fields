@@ -35,7 +35,7 @@ def dataset_average(
 
     return normalizeZeroOne(weighted_sum)
 
-def fix_model(model: nn.Sequential):
+def remove_padding(model: nn.Sequential):
     new_model = nn.Sequential()
     linear = [isinstance(module, nn.Linear) for module in model]
     if not np.any(linear):
@@ -50,12 +50,14 @@ def fix_model(model: nn.Sequential):
                 new_model.append(module)
     return new_model
 
-def effective_receptive_field(model: nn.Sequential, n_batch: int = 2048):
+def effective_receptive_field(model: nn.Sequential, n_batch: int = 2048, rf_size=None):
     '''
     for n_batch = 1 use empty input
     '''
     num_outputs, input_size = get_input_output_shape(model)
-    model = fix_model(model)
+    if rf_size is not None:
+        input_size=rf_size
+    model = remove_padding(model)
     results = torch.zeros((num_outputs, *input_size))
     for i in tqdm(range(num_outputs)):
         output_signal = torch.zeros(num_outputs)
@@ -88,9 +90,12 @@ def single_effective_receptive_field(
     return normalizeZeroOne(eff_rf)
 
 
-def _activation_triggered_average(model: nn.Module, n_batch: int = 2048):
+def _activation_triggered_average(model: nn.Module, n_batch: int = 2048, rf_size=None):
     model.eval()
-    _out_channels, input_size = get_input_output_shape(model)
+    if rf_size is None:
+        _out_channels, input_size = get_input_output_shape(model)
+    else:
+        input_size = rf_size
     input_tensor = torch.randn((n_batch, *input_size), requires_grad=False)
     output = model(input_tensor)
     output = sum_collapse_output(output)
@@ -106,11 +111,11 @@ def _activation_triggered_average(model: nn.Module, n_batch: int = 2048):
 
 
 def activation_triggered_average(
-    model: nn.Module, n_batch: int = 2048, n_iter: int = 1
+    model: nn.Module, n_batch: int = 2048, n_iter: int = 1, rf_size=None
 ):
     weighted = _activation_triggered_average(model, n_batch)
     for _ in tqdm(range(n_iter - 1), total=n_iter, initial=1):
-        weighted += _activation_triggered_average(model, n_batch)
+        weighted += _activation_triggered_average(model, n_batch, rf_size)
     return weighted.detach() / n_iter
 
 
