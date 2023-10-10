@@ -50,9 +50,9 @@ def remove_padding(model: nn.Sequential):
                 new_model.append(module)
     return new_model
 
-def effective_receptive_field(model: nn.Sequential, n_batch: int = 2048, rf_size=None):
+def effective_receptive_field(model: nn.Sequential, n_batch: int = 2048, fill_value=None, rf_size=None):
     '''
-    for n_batch = 1 use empty input
+    if fill value is given a single 'empty' input of that value is used
     '''
     num_outputs, input_size = get_input_output_shape(model)
     if rf_size is not None:
@@ -63,7 +63,7 @@ def effective_receptive_field(model: nn.Sequential, n_batch: int = 2048, rf_size
         output_signal = torch.zeros(num_outputs)
         output_signal[i] = 1
         results[i] = single_effective_receptive_field(
-            model, output_signal, input_size, n_batch
+            model, output_signal, input_size, n_batch, fill_value
         )
     return results
 
@@ -73,13 +73,14 @@ def single_effective_receptive_field(
     output_signal: torch.tensor,
     input_size: torch.Size,
     n_batch: int = 2048,
+    fill_value=None
 ):
     '''
-    for n_batch = 1 use empty input
+    check the doc of the parent method (effective_receptive_field) for reference
     '''
     model.eval()
-    if n_batch==1:
-        input_tensor = torch.full((n_batch, *input_size), fill_value=0.5, requires_grad=True)
+    if fill_value is not None:
+        input_tensor = torch.full((1, *input_size), fill_value=fill_value, requires_grad=True)
     else:
         input_tensor = torch.randn((n_batch, *input_size), requires_grad=True)
     output = model(input_tensor)
@@ -87,7 +88,7 @@ def single_effective_receptive_field(
     target_output = output * output_signal
     target_output.sum().backward()
     eff_rf = input_tensor.grad.sum(0)
-    return normalizeZeroOne(eff_rf)
+    return eff_rf
 
 
 def _activation_triggered_average(model: nn.Module, n_batch: int = 2048, rf_size=None):
