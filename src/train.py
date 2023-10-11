@@ -44,14 +44,21 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print("Using", device)
 model.to(device)
 
+i = 0
 while not early_stop:
-    train(model, optimizer, train_loader, device)
-    accuracy = validate(model, test_loader, device)
-    if accuracy > prev_best_acc:
-        prev_best_acc = accuracy
+    epoch_train_loss, epoch_train_acc = train(model, optimizer, train_loader, device)
+    # Print training loss for this epoch
+    print(
+        f"Epoch {i} - Training Loss: {epoch_train_loss}, Avg. Accuracy: {epoch_train_acc}"
+    )
+    epoch_val_acc = validate(model, test_loader, device)
+    print(f"Epoch {i} - Test Accuracy: {epoch_val_acc}%")
+    if epoch_val_acc > prev_best_acc:
+        prev_best_acc = epoch_val_acc
         inc_count = 0
         model.save(filepath)
     else:
         inc_count += 1
         if inc_count > early_stop_epochs:
             early_stop = True
+    i+=1

@@ -14,14 +14,16 @@ def train(model: nn.Module, optimizer: optim.Optimizer, train_loader: DataLoader
     running_loss = 0.0
 
     epoch_correct = 0
-    for i, (inputs, labels) in tqdm(enumerate(train_loader), total=(len(train_loader))):
+    pbar = tqdm(enumerate(train_loader), total=(len(train_loader)))
+    for i, (inputs, labels) in pbar:
         inputs = inputs.to(device)
         labels = labels.to(device)
         optimizer.zero_grad()  # Zero the parameter gradients
 
         # Forward pass
         outputs = model(inputs)
-        epoch_correct += num_correct(outputs, labels)
+        batch_correct =  num_correct(outputs, labels)
+        epoch_correct += batch_correct
         loss = criterion(outputs, labels)
 
         # Backpropagation and optimization
@@ -30,10 +32,8 @@ def train(model: nn.Module, optimizer: optim.Optimizer, train_loader: DataLoader
 
         running_loss += loss.item()
 
-    # Print training loss for this epoch
-    print(
-        f"Training Loss: {running_loss / len(train_loader)}, Avg. Accuracy: {epoch_correct / len(train_loader.dataset)}"
-    )
+        pbar.set_postfix({'Loss': loss.item(), 'Acc.:': batch_correct/len(labels)})
+    return running_loss/len(train_loader), epoch_correct/len(train_loader.dataset)
 
 
 def validate(model: nn.Module, dataloader: DataLoader, device: torch.device):
@@ -50,7 +50,6 @@ def validate(model: nn.Module, dataloader: DataLoader, device: torch.device):
             total += labels.size(0)
             correct += num_correct(outputs, labels)
     accuracy = 100 * correct / total
-    print(f"Test Accuracy: {accuracy}%")
     return accuracy
 
 
