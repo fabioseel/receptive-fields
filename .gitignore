@@ -162,4 +162,5 @@ cython_debug/
 
 # Project specific folders
 data/*
+models
 *.pth
