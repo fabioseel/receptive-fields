@@ -19,6 +19,7 @@ class SimpleCNN(BaseModel):
         stride=1,
         dilation=1,
         separable=False,
+        skip_connections=0
     ):
         super(SimpleCNN, self).__init__()
         self.img_size = img_size
@@ -30,6 +31,7 @@ class SimpleCNN(BaseModel):
         self.stride = stride
         self.dilation = dilation
         self.separable = separable
+        self.skip_connections=skip_connections
 
         # Define the first convolutional layer
         self.conv1 = self.get_convolution(
@@ -68,20 +70,33 @@ class SimpleCNN(BaseModel):
             )
 
     def forward(self, x):
+        skip_count = 1
+        if(self.skip_connections > 0):
+            pre_skip = x
         x = self.conv1(x)
         x = self.relu(x)
 
         for conv_layer in self.extra_conv_layers:
             x = conv_layer(x)
             x = self.relu(x)
+            if skip_count == self.skip_connections:
+                x = x+self.center_crop(pre_skip, x.shape)
+                skip_count=0
+            else:
+                skip_count +=1
 
         x = x.view(x.size(0), -1)  # Flatten the tensor
         x = self.fc(x)
         if not self.training:
             x = self.softmax(x)
         return x
+    
+    def center_crop(self, x, shape):
+        shape_diff = shape - x.shape
+        starts = shape_diff // 2
+        return x[starts[0]:shape[0],starts[1]:shape[1],starts[2]:shape[2],starts[3]:shape[3]]
 
-    def get_sequential(self):
+    def get_sequential(self): # TODO: add skip connections here?
         seq = nn.Sequential()
         seq.append(self.conv1)
         seq.append(self.relu)
@@ -107,6 +122,7 @@ class SimpleCNN(BaseModel):
             "stride": self.stride,
             "dilation": self.dilation,
             "separable": self.separable,
+            "skip_connections": self.skip_connections,
         }}
 
 
