@@ -5,6 +5,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+from models.simple import SeparableConv2d
 
 
 def normalizeZeroOne(input):
@@ -45,6 +46,14 @@ def remove_padding(model: nn.Sequential):
                                      padding=0, dilation=module.dilation, groups=module.groups)
                 new_conv.weight = module.weight
                 new_conv.bias = module.bias
+                new_model.append(new_conv)
+            elif isinstance(module, SeparableConv2d):
+                new_conv = SeparableConv2d(module.vertical_conv.in_channels, module.horizontal_conv.out_channels, module.vertical_conv.kernel_size[0], module.vertical_conv.stride[0],
+                                     padding=0, dilation=module.vertical_conv.dilation[0])
+                new_conv.vertical_conv.weight = module.vertical_conv.weight
+                new_conv.vertical_conv.bias = module.vertical_conv.bias
+                new_conv.horizontal_conv.weight = module.horizontal_conv.weight
+                new_conv.horizontal_conv.bias = module.horizontal_conv.bias
                 new_model.append(new_conv)
             else:
                 new_model.append(module)
@@ -134,10 +143,15 @@ def get_input_output_shape(model: nn.Sequential):
             in_size = layer.in_features
             down_stream_linear = True
             break
-        elif isinstance(layer, nn.Conv2d):
+        elif isinstance(layer, nn.Conv2d): # TODO: Refactor, nicify
             num_outputs = layer.out_channels
             in_channels = layer.in_channels
             in_size = layer.in_channels * layer.kernel_size[0] ** 2
+            break
+        elif isinstance(layer, SeparableConv2d):
+            num_outputs = layer.horizontal_conv.out_channels
+            in_channels = layer.vertical_conv.in_channels
+            in_size = layer.vertical_conv.in_channels * layer.vertical_conv.kernel_size[0] ** 2
             break
 
     for layer in reversed(model[:-_first]):
@@ -152,6 +166,15 @@ def get_input_output_shape(model: nn.Sequential):
                 (in_size - 1) * layer.stride[0] * layer.dilation[0]
                 - 2 * layer.padding[0] * down_stream_linear
                 + layer.kernel_size[0]
+            )
+            in_size = in_size**2 * in_channels
+        elif isinstance(layer, SeparableConv2d):
+            in_channels = layer.vertical_conv.in_channels
+            in_size = math.sqrt(in_size / layer.horizontal_conv.out_channels)
+            in_size = (
+                (in_size - 1) * layer.vertical_conv.stride[0] * layer.vertical_conv.dilation[0]
+                - 2 * layer.vertical_conv.padding[0] * down_stream_linear
+                + layer.vertical_conv.kernel_size[0]
             )
             in_size = in_size**2 * in_channels
 
