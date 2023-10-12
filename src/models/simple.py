@@ -4,6 +4,7 @@ from os import path
 import torch
 import torch.nn as nn
 import yaml
+from abc import ABC
 
 from models.base_model import BaseModel
 
@@ -105,9 +106,8 @@ class SimpleCNN(BaseModel):
 
 def get_convolution(in_channels, num_channels, kernel_size, stride, padding, dilation, separable=False, num_skip_layers=None):
     if num_skip_layers is not None:
-        return ResConv2d(in_channels, num_channels, kernel_size//num_skip_layers+1, num_skip_layers, stride, padding, dilation= dilation, separable=separable)
-        # TODO: Attention - works only if num_skip_layers and kernel_size match! Implement check or generalization
-    if separable:
+        return ResConv2d(in_channels, num_channels, kernel_size, num_skip_layers, stride, padding, dilation= dilation, separable=separable)
+    elif separable:
         return SeparableConv2d(
             in_channels, num_channels, kernel_size, stride, padding, dilation=dilation
         )
@@ -115,8 +115,33 @@ def get_convolution(in_channels, num_channels, kernel_size, stride, padding, dil
         return nn.Conv2d(
             in_channels, num_channels, kernel_size, stride, padding, dilation=dilation
         )
+    
+class ModConv2d(nn.Module, ABC):
+    def __init__(
+        self,
+        in_channels,
+        out_channels,
+        kernel_size,
+        stride=1,
+        padding=0,
+        dilation=1,
+        bias=True
+    ):
+        super(ModConv2d, self).__init__()
 
-class SeparableConv2d(nn.Module):
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        if isinstance(kernel_size, int):
+            self.kernel_size = (kernel_size, kernel_size)
+        if isinstance(stride, int):
+            self.stride=(stride, stride)
+        if isinstance(padding, int):
+            self.padding = (padding, padding)
+        if isinstance(dilation, int):
+            self.dilation = (dilation, dilation)
+        self.bias = bias
+
+class SeparableConv2d(ModConv2d):
     def __init__(
         self,
         in_channels,
@@ -127,7 +152,8 @@ class SeparableConv2d(nn.Module):
         dilation=1,
         bias=True,
     ):
-        super(SeparableConv2d, self).__init__()
+        super(SeparableConv2d, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation, bias)
+
         self.vertical_conv = nn.Conv2d(
             in_channels,
             in_channels,
@@ -153,12 +179,12 @@ class SeparableConv2d(nn.Module):
         return x
 
 
-class ResConv2d(nn.Module):
+class ResConv2d(ModConv2d):
     def __init__(
         self,
         in_channels,
         out_channels,
-        single_kernel_size,
+        kernel_size,
         layers = None,
         stride=1,
         padding=0,
@@ -166,7 +192,14 @@ class ResConv2d(nn.Module):
         separable=False,
         bias=True,
     ):
-        super(ResConv2d, self).__init__()
+        super(ResConv2d, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation, bias)
+
+        self.layers = layers
+        self.separable = separable
+        
+        single_kernel_size = kernel_size//layers+1 # TODO: Attention - works only if num_skip_layers and kernel_size match! Implement check or generalization
+        
+
         self.stacked_convs = nn.Sequential()
         self.stacked_convs.append(get_convolution(in_channels, out_channels, single_kernel_size, stride, padding, dilation, separable=separable))
         for _ in range(layers-1):
