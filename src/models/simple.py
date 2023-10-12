@@ -17,9 +17,10 @@ class SimpleCNN(BaseModel):
         num_channels=16,
         kernel_size=3,
         stride=1,
+        padding=0,
         dilation=1,
         separable=False,
-        skip_connections=0
+        num_skip_layers=None
     ):
         super(SimpleCNN, self).__init__()
         self.img_size = img_size
@@ -29,13 +30,14 @@ class SimpleCNN(BaseModel):
         self.num_channels = num_channels
         self.kernel_size = kernel_size
         self.stride = stride
+        self.padding = padding
         self.dilation = dilation
         self.separable = separable
-        self.skip_connections=skip_connections
+        self.num_skip_layers=num_skip_layers
 
         # Define the first convolutional layer
-        self.conv1 = self.get_convolution(
-            in_channels, num_channels, kernel_size, stride, dilation, separable
+        self.conv1 = get_convolution(
+            in_channels, num_channels, kernel_size, stride, padding, dilation, separable, num_skip_layers
         )
         self.relu = nn.ReLU()
         self.softmax = nn.Softmax(dim=-1)
@@ -44,8 +46,8 @@ class SimpleCNN(BaseModel):
         self.extra_conv_layers = nn.ModuleList()
         for _ in range(num_layers - 1):
             self.extra_conv_layers.append(
-                self.get_convolution(
-                    num_channels, num_channels, kernel_size, stride, dilation, separable
+                get_convolution(
+                    num_channels, num_channels, kernel_size, stride, padding, dilation, separable, num_skip_layers
                 )
             )
 
@@ -53,50 +55,25 @@ class SimpleCNN(BaseModel):
         res_size = self.img_size
         for l in range(self.num_layers):
             res_size = math.floor(
-                (res_size - dilation * (kernel_size - 1) - 1) / stride + 1
+                (res_size+2*padding - dilation * (kernel_size - 1) - 1) / stride + 1
             )
         self.fc = nn.Linear(num_channels * res_size**2, num_classes)
 
-    def get_convolution(
-        self, in_channels, num_channels, kernel_size, stride, dilation, separable=False
-    ):
-        if separable:
-            return SeparableConv2d(
-                in_channels, num_channels, kernel_size, stride, dilation=dilation
-            )
-        else:
-            return nn.Conv2d(
-                in_channels, num_channels, kernel_size, stride, dilation=dilation
-            )
-
     def forward(self, x):
-        skip_count = 1
-        if(self.skip_connections > 0):
-            pre_skip = x
         x = self.conv1(x)
         x = self.relu(x)
 
         for conv_layer in self.extra_conv_layers:
             x = conv_layer(x)
             x = self.relu(x)
-            if skip_count == self.skip_connections:
-                x = x+self.center_crop(pre_skip, x.shape)
-                skip_count=0
-            else:
-                skip_count +=1
 
         x = x.view(x.size(0), -1)  # Flatten the tensor
         x = self.fc(x)
         if not self.training:
             x = self.softmax(x)
         return x
-    
-    def center_crop(self, x, shape):
-        shape_diff = [x.shape[i] - shape[i] for i in range(len(shape))]
-        starts = [shape_diff[i] // 2 for i in range(len(shape))]
-        return x[starts[0]:starts[0]+shape[0],starts[1]:starts[1]+shape[1],starts[2]:starts[2]+shape[2],starts[3]:starts[3]+shape[3]]
 
-    def get_sequential(self): # TODO: add skip connections here?
+    def get_sequential(self): # TODO: how to add skip connections here?
         seq = nn.Sequential()
         seq.append(self.conv1)
         seq.append(self.relu)
@@ -120,11 +97,24 @@ class SimpleCNN(BaseModel):
             "num_channels": self.num_channels,
             "kernel_size": self.kernel_size,
             "stride": self.stride,
+            "padding": self.padding,
             "dilation": self.dilation,
             "separable": self.separable,
-            "skip_connections": self.skip_connections,
+            "num_skip_layers": self.num_skip_layers,
         }}
 
+def get_convolution(in_channels, num_channels, kernel_size, stride, padding, dilation, separable=False, num_skip_layers=None):
+    if num_skip_layers is not None:
+        return ResConv2d(in_channels, num_channels, kernel_size//num_skip_layers+1, num_skip_layers, stride, padding, dilation= dilation, separable=separable)
+        # TODO: Attention - works only if num_skip_layers and kernel_size match! Implement check or generalization
+    if separable:
+        return SeparableConv2d(
+            in_channels, num_channels, kernel_size, stride, padding, dilation=dilation
+        )
+    else:
+        return nn.Conv2d(
+            in_channels, num_channels, kernel_size, stride, padding, dilation=dilation
+        )
 
 class SeparableConv2d(nn.Module):
     def __init__(
@@ -161,3 +151,33 @@ class SeparableConv2d(nn.Module):
         x = self.vertical_conv(x)
         x = self.horizontal_conv(x)
         return x
+
+
+class ResConv2d(nn.Module):
+    def __init__(
+        self,
+        in_channels,
+        out_channels,
+        single_kernel_size,
+        layers = None,
+        stride=1,
+        padding=0,
+        dilation=1,
+        separable=False,
+        bias=True,
+    ):
+        super(ResConv2d, self).__init__()
+        self.stacked_convs = nn.Sequential()
+        self.stacked_convs.append(get_convolution(in_channels, out_channels, single_kernel_size, stride, padding, dilation, separable=separable))
+        for _ in range(layers-1):
+            self.stacked_convs.append(get_convolution(out_channels, out_channels, single_kernel_size, stride=1, padding=0, dilation=1, separable=separable))
+
+    def center_crop(self, x, shape):
+        shape_diff = [x.shape[i] - shape[i] for i in range(len(shape))]
+        starts = [shape_diff[i] // 2 for i in range(len(shape))]
+        return x[starts[0]:starts[0]+shape[0],starts[1]:starts[1]+shape[1],starts[2]:starts[2]+shape[2],starts[3]:starts[3]+shape[3]]
+
+    def forward(self, x):
+        # TODO: different "cropping" mechanisms, inner activation functions?
+        out = self.stacked_convs(x)
+        return out + self.center_crop(x, out.shape)
