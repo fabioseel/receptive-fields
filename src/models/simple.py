@@ -92,9 +92,9 @@ class SimpleCNN(BaseModel):
         return x
     
     def center_crop(self, x, shape):
-        shape_diff = shape - x.shape
-        starts = shape_diff // 2
-        return x[starts[0]:shape[0],starts[1]:shape[1],starts[2]:shape[2],starts[3]:shape[3]]
+        shape_diff = [x.shape[i] - shape[i] for i in range(len(shape))]
+        starts = [shape_diff[i] // 2 for i in range(len(shape))]
+        return x[starts[0]:starts[0]+shape[0],starts[1]:starts[1]+shape[1],starts[2]:starts[2]+shape[2],starts[3]:starts[3]+shape[3]]
 
     def get_sequential(self): # TODO: add skip connections here?
         seq = nn.Sequential()
