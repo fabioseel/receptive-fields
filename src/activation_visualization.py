@@ -18,14 +18,15 @@ def sum_collapse_output(out_tensor):
     return out_tensor
 
 
-def dataset_average(
-    model: nn.Module, dataloader: DataLoader, desired_output=torch.Tensor
+def _dataset_average(
+    model: nn.Module, dataloader: DataLoader, desired_output=torch.Tensor, device=None
 ):
     model.eval()  # Set the model to evaluation mode
-    weighted_sum = torch.zeros(next(iter(dataloader))[0].shape[1:])
+    weighted_sum = torch.zeros(next(iter(dataloader))[0].shape[1:], device=device)
 
     with torch.no_grad():
         for inputs, _ in dataloader:
+            inputs=inputs.to(device)
             outputs = model(inputs)
 
             # Calculate the error as the difference between the predicted and desired distributions
@@ -34,7 +35,21 @@ def dataset_average(
             weighted_inputs = inputs * weight
             weighted_sum += weighted_inputs.sum(dim=0)
 
-    return normalizeZeroOne(weighted_sum)
+    return normalizeZeroOne(weighted_sum.cpu())
+
+
+def dataset_average(
+    model: nn.Module, dataloader: DataLoader, device=None
+):
+    num_outputs, input_size = get_input_output_shape(model)
+    results = torch.zeros((num_outputs, *dataloader.dataset[0][0].shape))
+    for i in tqdm(range(num_outputs)):
+        output_signal = torch.zeros(num_outputs, device=device)
+        output_signal[i] = 1
+        results[i] = _dataset_average(
+            model, dataloader, output_signal, device
+        )
+    return results
 
 def remove_padding(model: nn.Sequential):
     new_model = nn.Sequential()
@@ -68,21 +83,20 @@ def remove_padding(model: nn.Sequential):
     
     return new_model
 
-def effective_receptive_field(model: nn.Sequential, n_batch: int = 2048, fill_value: float=None, rf_size: tuple=None):
+def effective_receptive_field(model: nn.Sequential, n_batch: int = 2048, fill_value: float=None, rf_size: tuple=None, device=None):
     '''
     if fill value is given a single 'empty' input of that value is used
     '''
-
-    model = remove_padding(model)
+    model = remove_padding(model).to(device)
     num_outputs, input_size = get_input_output_shape(model)
     if rf_size is not None:
         input_size=rf_size
     results = torch.zeros((num_outputs, *input_size))
     for i in tqdm(range(num_outputs)):
-        output_signal = torch.zeros(num_outputs)
+        output_signal = torch.zeros(num_outputs, device=device)
         output_signal[i] = 1
         results[i] = single_effective_receptive_field(
-            model, output_signal, input_size, n_batch, fill_value
+            model, output_signal, input_size, n_batch, fill_value, device
         )
     return results
 
@@ -92,31 +106,32 @@ def single_effective_receptive_field(
     output_signal: torch.tensor,
     input_size: torch.Size,
     n_batch: int = 2048,
-    fill_value: float =None
+    fill_value: float =None,
+    device = None
 ):
     '''
     check the doc of the parent method (effective_receptive_field) for reference
     '''
     model.eval()
     if fill_value is not None:
-        input_tensor = torch.full((1, *input_size), fill_value=fill_value, requires_grad=True)
+        input_tensor = torch.full((1, *input_size), fill_value=fill_value, requires_grad=True, device=device)
     else:
-        input_tensor = torch.randn((n_batch, *input_size), requires_grad=True)
+        input_tensor = torch.randn((n_batch, *input_size), requires_grad=True, device=device)
     output = model(input_tensor)
     output = sum_collapse_output(output)
     target_output = output * output_signal
     target_output.sum().backward()
     eff_rf = input_tensor.grad.sum(0)
-    return eff_rf
+    return eff_rf.cpu().detach()
 
 
-def _activation_triggered_average(model: nn.Module, n_batch: int = 2048, rf_size=None):
+def _activation_triggered_average(model: nn.Module, n_batch: int = 2048, rf_size=None, device=None):
     model.eval()
     if rf_size is None:
         _out_channels, input_size = get_input_output_shape(model)
     else:
         input_size = rf_size
-    input_tensor = torch.randn((n_batch, *input_size), requires_grad=False)
+    input_tensor = torch.randn((n_batch, *input_size), requires_grad=False, device=device)
     output = model(input_tensor)
     output = sum_collapse_output(output)
     input_tensor = input_tensor[:, None, :, :, :].expand(
@@ -127,16 +142,16 @@ def _activation_triggered_average(model: nn.Module, n_batch: int = 2048, rf_size
     weight_sums = output.abs().sum(0)
     weight_sums[weight_sums == 0] = 1
     weighted = (weights.abs() * input_tensor).sum(0) / weight_sums[:, None, None, None]
-    return weighted.detach() / n_batch
+    return weighted.cpu().detach() / n_batch
 
 
 def activation_triggered_average(
-    model: nn.Module, n_batch: int = 2048, n_iter: int = 1, rf_size=None
-):
-    weighted = _activation_triggered_average(model, n_batch)
+    model: nn.Module, n_batch: int = 2048, n_iter: int = 1, rf_size=None, device=None
+): # TODO: Buggy? Returns only noise
+    weighted = _activation_triggered_average(model, n_batch, device=device)
     for _ in tqdm(range(n_iter - 1), total=n_iter, initial=1):
-        weighted += _activation_triggered_average(model, n_batch, rf_size)
-    return weighted.detach() / n_iter
+        weighted += _activation_triggered_average(model, n_batch, rf_size, device=device)
+    return weighted.cpu().detach() / n_iter
 
 
 def get_input_output_shape(model: nn.Sequential):
@@ -196,6 +211,7 @@ def backprop_maximization(
     batch_size=16,
     reduction=True,
     smoothened=False,
+    device=None
 ):
     num_outputs, input_size = get_input_output_shape(model)
     results = torch.zeros((num_outputs, *input_size))
@@ -203,7 +219,7 @@ def backprop_maximization(
         output_signal = torch.zeros(num_outputs)
         output_signal[i] = 1
         results[i] = single_backprop_maximization(
-            model, output_signal, input_size, n_iter, batch_size, reduction, smoothened
+            model, output_signal, input_size, n_iter, batch_size, reduction, smoothened, device
         )
     return results
 
@@ -216,16 +232,17 @@ def single_backprop_maximization(
     batch_size=16,
     reduction=True,
     smoothened=False,
+    device=None
 ):
     model.eval()
     criterion = nn.CrossEntropyLoss()
     smooth_loss = nn.MSELoss()
 
-    input_tensor = torch.randn((batch_size, *input_size), requires_grad=True)
+    input_tensor = torch.randn((batch_size, *input_size), requires_grad=True, device=device)
     for i in tqdm(range(n_iter)):
         input_tensor.requires_grad = True
         output = model(input_tensor.repeat(1, 1, 1, 1))
-        loss = criterion(output, output_signal.repeat(batch_size, 1))
+        loss = criterion(output, output_signal.to(device).repeat(batch_size, 1))
         if smoothened and i > n_iter / 3:
             loss = (
                 loss
@@ -237,6 +254,6 @@ def single_backprop_maximization(
         loss.backward()
         input_tensor = normalizeZeroOne(input_tensor.detach() - input_tensor.grad)
     if reduction:
-        return normalizeZeroOne(input_tensor.mean(0)).detach()
+        return normalizeZeroOne(input_tensor.mean(0)).cpu().detach()
     else:
-        return input_tensor.detach()
+        return input_tensor.cpu().detach()

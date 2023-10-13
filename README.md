@@ -20,3 +20,5 @@ conda install matplotlib
 ```
 conda install tqdm
 ```
+- ipykernel (conda)
+- torchinfo (pip)
