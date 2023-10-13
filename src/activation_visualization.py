@@ -56,7 +56,7 @@ def remove_padding(model: nn.Sequential):
                 new_conv.horizontal_conv.bias = module.horizontal_conv.bias
                 new_model.append(new_conv)
             elif isinstance(module, ResConv2d):
-                new_conv = ResConv2d(module.in_channels,module.out_channels,module.kernel_size[0],module.layers, module.stride, padding=0, dilation=module.dilation, separable=module.separable)
+                new_conv = ResConv2d(module.in_channels,module.out_channels,module.kernel_size[0],module.layers, module.stride, padding=0, dilation=module.dilation[0], separable=module.separable)
                 for (_old_conv, _new_conv) in zip(module.stacked_convs, new_conv.stacked_convs):
                     _new_conv.weight = _old_conv.weight
                     _new_conv.bias = _old_conv.bias
@@ -72,10 +72,11 @@ def effective_receptive_field(model: nn.Sequential, n_batch: int = 2048, fill_va
     '''
     if fill value is given a single 'empty' input of that value is used
     '''
+
+    model = remove_padding(model)
     num_outputs, input_size = get_input_output_shape(model)
     if rf_size is not None:
         input_size=rf_size
-    model = remove_padding(model)
     results = torch.zeros((num_outputs, *input_size))
     for i in tqdm(range(num_outputs)):
         output_signal = torch.zeros(num_outputs)
@@ -152,7 +153,7 @@ def get_input_output_shape(model: nn.Sequential):
         elif isinstance(layer, nn.Conv2d) or isinstance(layer, ModConv2d): # TODO: Refactor, nicify
             num_outputs = layer.out_channels
             in_channels = layer.in_channels
-            in_size = layer.in_channels * layer.kernel_size[0] ** 2
+            in_size = layer.in_channels * ((layer.kernel_size[0]-1)*layer.dilation[0]+1) ** 2
             break
         # elif isinstance(layer, SeparableConv2d):
         #     num_outputs = layer.horizontal_conv.out_channels

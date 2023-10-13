@@ -133,12 +133,20 @@ class ModConv2d(nn.Module, ABC):
         self.out_channels = out_channels
         if isinstance(kernel_size, int):
             self.kernel_size = (kernel_size, kernel_size)
+        else:
+            self.kernel_size = kernel_size
         if isinstance(stride, int):
             self.stride=(stride, stride)
+        else:
+            self.stride = stride
         if isinstance(padding, int):
             self.padding = (padding, padding)
+        else:
+            self.padding=padding
         if isinstance(dilation, int):
             self.dilation = (dilation, dilation)
+        else:
+            self.dilation = dilation
         self.bias = bias
 
 class SeparableConv2d(ModConv2d):
@@ -201,7 +209,7 @@ class ResConv2d(ModConv2d):
         
 
         self.stacked_convs = nn.Sequential()
-        self.stacked_convs.append(get_convolution(in_channels, out_channels, single_kernel_size, stride, padding, dilation, separable=separable))
+        self.stacked_convs.append(get_convolution(in_channels, out_channels, single_kernel_size, stride, padding, dilation*layers - 1, separable=separable))
         for _ in range(layers-1):
             self.stacked_convs.append(get_convolution(out_channels, out_channels, single_kernel_size, stride=1, padding=0, dilation=1, separable=separable))
 
