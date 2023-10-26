@@ -6,6 +6,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from models.simple import SeparableConv2d, ResConv2d, ModConv2d
+from util import L2Pool
 
 
 def normalizeZeroOne(input):
@@ -28,12 +29,12 @@ def _dataset_average(
         for inputs, _ in dataloader:
             inputs=inputs.to(device)
             outputs = model(inputs)
+            outputs = sum_collapse_output(outputs)
 
-            # Calculate the error as the difference between the predicted and desired distributions
-            error = torch.sum(torch.pow((desired_output - outputs), 4))
-            weight = 1.0 / (1.0 + error)
-            weighted_inputs = inputs * weight
-            weighted_sum += weighted_inputs.sum(dim=0)
+            weight = nn.functional.cross_entropy(outputs, desired_output[None].expand(outputs.shape[0], -1), reduction='none')
+            weight = normalizeZeroOne(1.0/weight)
+            expanded_weight = weight[..., *[None for _ in range(len(inputs.shape)-1)]]
+            weighted_sum += torch.sum(expanded_weight * inputs, dim=0)
 
     return normalizeZeroOne(weighted_sum.cpu())
 
@@ -76,6 +77,15 @@ def remove_padding(model: nn.Sequential):
                     _new_conv.weight = _old_conv.weight
                     _new_conv.bias = _old_conv.bias
                 new_model.append(new_conv)
+            elif isinstance(module, nn.AvgPool2d):
+                new_pool = nn.AvgPool2d(module.kernel_size, module.stride, padding=0)
+                new_model.append(new_pool)
+            elif isinstance(module, nn.MaxPool2d):
+                new_pool = nn.MaxPool2d(module.kernel_size, module.stride, padding=0, dilation=module.dilation)
+                new_model.append(new_pool)
+            elif isinstance(module, L2Pool):
+                new_pool = L2Pool(module.kernel_size, module.stride, padding=0)
+                new_model.append(new_pool)
             else:
                 new_model.append(module)
     else:
@@ -147,7 +157,7 @@ def _activation_triggered_average(model: nn.Module, n_batch: int = 2048, rf_size
 
 def activation_triggered_average(
     model: nn.Module, n_batch: int = 2048, n_iter: int = 1, rf_size=None, device=None
-): # TODO: Buggy? Returns only noise
+):
     weighted = _activation_triggered_average(model, n_batch, device=device)
     for _ in tqdm(range(n_iter - 1), total=n_iter, initial=1):
         weighted += _activation_triggered_average(model, n_batch, rf_size, device=device)
@@ -157,6 +167,7 @@ def activation_triggered_average(
 def get_input_output_shape(model: nn.Sequential):
     _first = 0
     down_stream_linear = False
+    num_outputs = None
     for layer in reversed(model):
         _first += 1
         if isinstance(layer, nn.Linear):
@@ -165,31 +176,43 @@ def get_input_output_shape(model: nn.Sequential):
             in_size = layer.in_features
             down_stream_linear = True
             break
-        elif isinstance(layer, nn.Conv2d) or isinstance(layer, ModConv2d): # TODO: Refactor, nicify
+        elif isinstance(layer, nn.Conv2d) or isinstance(layer, ModConv2d):
             num_outputs = layer.out_channels
             in_channels = layer.in_channels
             in_size = layer.in_channels * ((layer.kernel_size[0]-1)*layer.dilation[0]+1) ** 2
             break
-        # elif isinstance(layer, SeparableConv2d):
-        #     num_outputs = layer.horizontal_conv.out_channels
-        #     in_channels = layer.vertical_conv.in_channels
-        #     in_size = layer.vertical_conv.in_channels * layer.vertical_conv.kernel_size[0] ** 2
-        #     break
+        elif  isinstance(layer, nn.MaxPool2d) or isinstance(layer, nn.AvgPool2d) or isinstance(layer, L2Pool):
+            in_channels = 1
+            in_size = layer.kernel_size**2
+            break
 
     for layer in reversed(model[:-_first]):
         if isinstance(layer, nn.Linear):
+            if num_outputs is None:
+                num_outputs = layer.out_features
             in_channels = 1
             in_size = layer.in_features
             down_stream_linear = True
         elif isinstance(layer, nn.Conv2d) or isinstance(layer, ModConv2d):
-            in_channels = layer.in_channels
+            if num_outputs is None:
+                num_outputs = layer.out_channels
             in_size = math.sqrt(in_size / layer.out_channels)
+            in_channels = layer.in_channels
             in_size = (
-                (in_size - 1) * layer.stride[0] * layer.dilation[0]
+                (in_size - 1) * layer.stride[0]
                 - 2 * layer.padding[0] * down_stream_linear
-                + layer.kernel_size[0]
+                + ((layer.kernel_size[0]-1)*layer.dilation[0]+1) 
             )
             in_size = in_size**2 * in_channels
+        elif isinstance(layer, nn.MaxPool2d) or isinstance(layer, nn.AvgPool2d) or isinstance(layer, L2Pool):
+            in_size = math.sqrt(in_size / in_channels)
+            in_size = (
+                (in_size - 1) * layer.stride
+                - 2 * layer.padding * down_stream_linear
+                + layer.kernel_size
+            )
+            in_size = in_size**2 * in_channels
+            
         # elif isinstance(layer, SeparableConv2d):
         #     in_channels = layer.vertical_conv.in_channels
         #     in_size = math.sqrt(in_size / layer.horizontal_conv.out_channels)
