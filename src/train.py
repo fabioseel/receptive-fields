@@ -16,8 +16,13 @@ parser.add_argument("config", type=str)
 parser.add_argument("dataset", type=str)
 parser.add_argument("batch_size", type=int)
 parser.add_argument("lr", type=float)
+parser.add_argument("--save_hist", action="store_true", 
+                    help="save the weights after each epoch") 
+
 
 args = parser.parse_args()
+
+print("Enabled history saving: ", args.save_hist)
 
 filepath = args.config
 
@@ -61,7 +66,7 @@ model.to(device)
 
 i = 0
 
-log_file = "../models/logs/"+Path(filepath).name+".yaml"
+log_file = Path("../models").joinpath(*[d for d in Path(filepath).parts[:-1]],"logs", Path(filepath).name+".yaml")
 
 log_dict =  {}
 log_dict['model_config'] = args.config
@@ -80,10 +85,15 @@ while not early_stop:
     )
     epoch_val_acc = validate(model, test_loader, device)
     print(f"Epoch {i} - Test Accuracy: {epoch_val_acc}%")
+
+    if args.save_hist:
+        model.save(filepath+"_e{:02d}".format(i))
+
     if epoch_val_acc > prev_best_acc:
         prev_best_acc = epoch_val_acc
         inc_count = 0
-        model.save(filepath)
+        if not args.save_hist:
+            model.save(filepath)
     else:
         inc_count += 1
         if inc_count > early_stop_epochs:
