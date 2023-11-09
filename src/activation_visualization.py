@@ -186,7 +186,7 @@ def get_input_output_shape(model: nn.Sequential):
             in_size = layer.kernel_size**2
             break
 
-    for layer in reversed(model[:-_first]):
+    for i, layer in enumerate(reversed(model[:-_first])):
         if isinstance(layer, nn.Linear):
             if num_outputs is None:
                 num_outputs = layer.out_features
@@ -194,9 +194,15 @@ def get_input_output_shape(model: nn.Sequential):
             in_size = layer.in_features
             down_stream_linear = True
         elif isinstance(layer, nn.Conv2d) or isinstance(layer, ModConv2d):
+            for prev_layer in reversed(model[:-i-_first]):
+                if isinstance(prev_layer, nn.Conv2d) or isinstance(prev_layer, ModConv2d):
+                    in_channels = prev_layer.out_channels
+                    break
+                elif isinstance(prev_layer, nn.Linear):
+                    in_channels=1
             if num_outputs is None:
                 num_outputs = layer.out_channels
-            in_size = math.sqrt(in_size / layer.out_channels)
+            in_size = math.sqrt(in_size / in_channels)
             in_channels = layer.in_channels
             in_size = (
                 (in_size - 1) * layer.stride[0]
@@ -205,6 +211,10 @@ def get_input_output_shape(model: nn.Sequential):
             )
             in_size = in_size**2 * in_channels
         elif isinstance(layer, nn.MaxPool2d) or isinstance(layer, nn.AvgPool2d) or isinstance(layer, L2Pool):
+            for prev_layer in reversed(model[:-i-_first]):
+                if isinstance(prev_layer, nn.Conv2d) or isinstance(prev_layer, ModConv2d):
+                    in_channels = prev_layer.out_channels
+                    break
             in_size = math.sqrt(in_size / in_channels)
             in_size = (
                 (in_size - 1) * layer.stride
