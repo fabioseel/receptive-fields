@@ -18,6 +18,10 @@ parser.add_argument("batch_size", type=int)
 parser.add_argument("lr", type=float)
 parser.add_argument("--save_hist", action="store_true", 
                     help="save the weights after each epoch") 
+parser.add_argument("--num_epochs", type=int, default=20, 
+                    help="stop after n_epochs epoch") 
+parser.add_argument("--early_stop", type=int, default=0, 
+                    help="stop after n epochs of not improving") 
 
 
 args = parser.parse_args()
@@ -57,14 +61,13 @@ train_loader = DataLoader(train_data, batch_size=args.batch_size, shuffle=True, 
 test_loader = DataLoader(test_data, batch_size=args.batch_size, shuffle=False, num_workers=4, prefetch_factor=4)
 
 prev_best_acc = 0
-early_stop_epochs = 5
-early_stop = False
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print("Using", device)
 model.to(device)
 
-i = 0
+i_epoch = 0
+stop=False
 
 log_file = Path("../models").joinpath(*[d for d in Path(filepath).parts[:-1]],"logs", Path(filepath).name+".yaml")
 
@@ -77,17 +80,17 @@ log_dict['lr'] = args.lr
 log_dict['train_loss'] = []
 log_dict['train_acc'] = []
 log_dict['val_acc'] = []
-while not early_stop:
+while not stop:
     epoch_train_loss, epoch_train_acc = train(model, optimizer, train_loader, device)
     # Print training loss for this epoch
     print(
-        f"Epoch {i} - Training Loss: {epoch_train_loss}, Avg. Accuracy: {epoch_train_acc}"
+        f"Epoch {i_epoch} - Training Loss: {epoch_train_loss}, Avg. Accuracy: {epoch_train_acc}"
     )
     epoch_val_acc = validate(model, test_loader, device)
-    print(f"Epoch {i} - Test Accuracy: {epoch_val_acc}%")
+    print(f"Epoch {i_epoch} - Test Accuracy: {epoch_val_acc}%")
 
     if args.save_hist:
-        model.save(filepath+"_e{:02d}".format(i))
+        model.save(filepath+"_e{:02d}".format(i_epoch))
 
     if epoch_val_acc > prev_best_acc:
         prev_best_acc = epoch_val_acc
@@ -96,12 +99,14 @@ while not early_stop:
             model.save(filepath)
     else:
         inc_count += 1
-        if inc_count > early_stop_epochs:
-            early_stop = True
+        if args.early_stop == 0:
+            stop = i_epoch >= args.num_epochs-1
+        elif inc_count >= args.early_stop:
+            stop = True
 
     log_dict['train_loss'].append(epoch_train_loss)
     log_dict['train_acc'].append(epoch_train_acc)
     log_dict['val_acc'].append(epoch_val_acc)
     with open(log_file, 'w+') as f:
         yaml.dump(log_dict, f)
-    i+=1
+    i_epoch+=1

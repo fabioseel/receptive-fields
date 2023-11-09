@@ -1,9 +1,12 @@
 from torch import nn
 import torch
-from skimage.filters import gabor_kernel
 from skimage.transform import resize
 from scipy import optimize
 import numpy as np
+from scipy.ndimage import gaussian_filter
+
+def normalize(img):
+    return (img-img.mean())/(img.max()-img.min())
 
 class L2Pool(nn.Module):
     def __init__(self, *args, **kwargs):
@@ -44,53 +47,126 @@ def _resize(inp, shape, method='pad_crop', fill_value=None):
         res = resize(inp, shape)
     return res
 
-def _gabor_fit_mse_loss(params, image, theta, sigma_x, sigma_y, n_stds):
-    kernel = params[2]*gabor_kernel(frequency=1.0/params[0], theta=theta, sigma_x=sigma_x, sigma_y=sigma_y, n_stds=n_stds, offset=params[1]).real + params[3]
-    resulting_kernel = _resize(kernel, image.shape, fill_value=params[3])
+def gabor_kernel(shape=(128, 128), frequency=0.2, theta=0, sigma_x=1, sigma_y=1, phase_offset=0, center_offset=(0, 0), factor=1, offset=0):
+    """
+    Generate a Gabor kernel with the specified shape, center offset, and phase offset.
+
+    Parameters:
+        shape (tuple, optional): Desired output shape (height, width) of the Gabor kernel. Default is (128, 128).
+        frequency (float, optional): Spatial frequency of the sinusoidal component. Default is 0.2.
+        theta (float, optional): Orientation of the filter (in radians). Default is 0.
+        sigma_x (float, optional): Standard deviation of the Gaussian envelope in the x-direction. Default is 1.
+        sigma_y (float, optional): Standard deviation of the Gaussian envelope in the y-direction. Default is 1.
+        phase_offset (float, optional): Phase offset of the Gabor kernel (in radians). Default is 0.
+        center_offset (tuple, optional): Center offset of the Gaussian envelope (offset_x, offset_y). Default is (0, 0).
+        factor (float, optional): scale the resulting filters values
+        offset  (float, optional): added to the resulting filters values
+
+    Returns:
+        numpy.ndarray: Gabor kernel with the specified shape, center offset, and phase offset.
+    """
+    x, y = np.meshgrid(np.linspace(-shape[1]/2, shape[1]/2, shape[1]), np.linspace(-shape[0]/2, shape[0]/2, shape[0]))
+    
+    # Apply center offset to the coordinates
+    x -= center_offset[0]
+    y -= center_offset[1]
+    
+    x_theta = x * np.cos(theta) + y * np.sin(theta)
+    y_theta = -x * np.sin(theta) + y * np.cos(theta)
+    
+    envelope = np.exp(-0.5 * (x_theta**2 / sigma_x**2 + y_theta**2 / sigma_y**2))
+    sinusoid = np.cos(2 * np.pi * frequency * x_theta + phase_offset)
+    
+    gabor_kernel = envelope * sinusoid
+    return gabor_kernel
+
+def _gabor_fit_mse_loss(params, image, theta, sigma_x, sigma_y):
+    resulting_kernel = gabor_kernel(image.shape, frequency=1.0/params[0], theta=theta, sigma_x=sigma_x, sigma_y=sigma_y, phase_offset=params[1], factor = params[2], offset = params[3])
+    # resulting_kernel = _resize(kernel, image.shape, fill_value=params[3])
     mse = np.mean((image - resulting_kernel)**2)
     return mse
 
-def fit_gabor_filter(image, wavelength=4, theta=None, phase_offset=0,  maxiter=100):
+def fit_gabor_filter(image, wavelength=None, theta=None, phase_offset=0,  maxiter=100):
     if theta is None:
         theta = detect_angle(image)
-    amplitude, x0, y0, sigma_x, sigma_y, offset, gauss_theta = fit_gaussian_2d(np.abs(image), theta=theta)
+    if wavelength is None:
+        _min = np.array(np.unravel_index(image.real.argmin(), image.real.shape))
+        _max = np.array(np.unravel_index(image.real.argmax(), image.real.shape))
+        wavelength = np.sqrt(np.sum((_max-_min)**2))*2
+
+    amplitude, x0, y0, sigma_x, sigma_y, offset = _fit_gaussian_2d(np.abs(image), theta=-theta, maxiter=maxiter) # theta flip bc gaussian kernel rotates mathematically positive (anticlockwise), but gabor kernel defined differently 
 
     sign = np.sign(image[image.shape[0]//2, image.shape[1]//2])
-    initial_params = (wavelength, phase_offset, sign*amplitude, offset)
-    bounds=[(4,image.shape[0]*4), (0, 2*np.pi), (None, None), (None, None)]
-    result = optimize.minimize(_gabor_fit_mse_loss, initial_params, args=(image, theta, sigma_x, sigma_y, 4), bounds=bounds, method='Nelder-Mead', options={'maxiter':maxiter})
+    initial_params = (np.clip(wavelength, 4, image.shape[0]*3), phase_offset, sign*amplitude, offset)
+    bounds=[(4, image.shape[0]*3), (-np.pi, np.pi), (None, None), (None, None)]
+    result = optimize.minimize(_gabor_fit_mse_loss, initial_params, args=(image, theta, sigma_x, sigma_y), bounds=bounds, method='Nelder-Mead', options={'maxiter':maxiter})
     params = result.x
-    reproduced = params[2]*gabor_kernel(frequency=1.0/params[0], theta=theta, sigma_x=sigma_x, sigma_y=sigma_y, n_stds=4, offset=params[1]).real+params[3]
+    reproduced = gabor_kernel(image.shape, frequency=1.0/params[0], theta=theta, sigma_x=sigma_x, sigma_y=sigma_y, phase_offset=params[1], factor = params[2], offset = params[3])
     reproduced = _resize(reproduced, image.shape, fill_value=params[3])
-    return reproduced, result.fun, result.x
+    return reproduced, result.fun, params
 
 def detect_angle(image, n_thetas=180):
-    image[np.abs(image)<np.mean(np.abs(image))]=0
+    tmp_image = np.copy(image)
+    tmp_image[np.abs(image)<np.quantile(np.abs(image), 0.9)]=0
     thetas = (np.array([i+0.5 for i in range(n_thetas)])/n_thetas*2*np.pi - np.pi)/2
-    h, theta, d = weighted_hough_line(image, theta=thetas)
+    h, theta, d = weighted_hough_line(tmp_image, theta=thetas)
     return thetas[np.argmax((h**2).sum(axis=0))]
 
-def gaussian_2d(xy, amplitude, xo, yo, sigma_x, sigma_y, offset, theta):
+def gaussian_2d(xy, amplitude, x0, y0, sigma_x, sigma_y, offset, theta):
     x, y = xy
     a = np.cos(theta) ** 2 / (2 * sigma_x ** 2) + np.sin(theta) ** 2 / (2 * sigma_y ** 2)
     b = -np.sin(2 * theta) / (4 * sigma_x ** 2) + np.sin(2 * theta) / (4 * sigma_y ** 2)
     c = np.sin(theta) ** 2 / (2 * sigma_x ** 2) + np.cos(theta) ** 2 / (2 * sigma_y ** 2)
 
-    exp_term = a * (x - xo) ** 2 + 2 * b * (x - xo) * (y - yo) + c * (y - yo) ** 2
+    exp_term = a * (x - x0) ** 2 + 2 * b * (x - x0) * (y - y0) + c * (y - y0) ** 2
     return amplitude * np.exp(-exp_term) + offset
 
-def fit_gaussian_2d(image, amplitude=1, x0=None, y0=None, sigma_x=2, sigma_y=2, offset=0, theta=0):
+def gaussian_kernel(shape=(128, 128), amplitude=1, x0=None, y0=None, sigma_x=1, sigma_y=1, offset=0, theta=0):
+    if x0 is None:
+        x0 = shape[0]/2
+    if y0 is None:
+        y0 = shape[1]/2
+    x, y = np.meshgrid(np.linspace(0,shape[0], shape[0]), np.linspace(0,shape[1], shape[1]))
+    gauss = gaussian_2d((x,y), amplitude, x0, y0, sigma_x, sigma_y, offset, theta)
+    return gauss
+
+def _gaussian_fit_mse_loss(params, image, theta):
+    amplitude, x0, y0, sigma_x, sigma_y, offset = params
+    resulting_kernel = gaussian_kernel(image.shape, amplitude, x0, y0, sigma_x, sigma_y, offset, theta)
+    # resulting_kernel = _resize(kernel, image.shape, fill_value=params[3])
+    mse = np.mean((image - resulting_kernel)**2)
+    return mse
+
+def _fit_gaussian_2d(image, amplitude=1, x0=None, y0=None, sigma_x=2, sigma_y=2, offset=0, theta=0, blur_sigma=0, maxiter=100):
+    if x0 is None:
+        x0 = image.shape[0]/2
+    if y0 is None:
+        y0 = image.shape[1]/2
+
+    _img=gaussian_filter(np.abs(image), sigma=blur_sigma)
+    
+    initial_params = (amplitude, x0, y0, sigma_x, sigma_y, offset)
+    bounds=[(0, None), (0, _img.shape[0]), (0, _img.shape[1]), (.1, None), (.1, None), (0,None)]
+    result = optimize.minimize(_gaussian_fit_mse_loss, initial_params, args=(_img, theta), bounds=bounds, method='Nelder-Mead', options={'maxiter':maxiter})
+    return result.x
+
+def fit_gaussian_2d(image, amplitude=1, x0=None, y0=None, sigma_x=2, sigma_y=2, offset=0, theta=0, blur_sigma=0):
     if x0 is None:
         x0= image.shape[0]//2
     if y0 is None:
         y0= image.shape[1]//2
+    
+    _img=gaussian_filter(np.abs(image), sigma=blur_sigma)
+        
 
     # Generate meshgrid
-    x, y = np.meshgrid(np.linspace(0,image.shape[0], image.shape[0]), np.linspace(0,image.shape[1], image.shape[1]))
+    x, y = np.meshgrid(np.linspace(0,_img.shape[0], _img.shape[0]), np.linspace(0,_img.shape[1], _img.shape[1]))
 
     initial_guess = (amplitude, x0, y0, sigma_x, sigma_y, offset, theta)
-
-    params, covariance = optimize.curve_fit(gaussian_2d, (x.ravel(), y.ravel()), image.ravel(), p0=initial_guess)
+    try:
+        params, covariance = optimize.curve_fit(gaussian_2d, (x.ravel(), y.ravel()), _img.ravel(), p0=initial_guess)
+    except:
+        params = initial_guess
 
     return params
 
@@ -103,7 +179,7 @@ def weighted_hough_line(img: np.ndarray,
     ----------
     img : (M, N) ndarray
         Input image with nonzero values representing edges.
-    theta : 1D ndarray of float64
+    theta : 1D ndarray of float6411
         Angles at which to compute the transform, in radians.
 
     Returns
