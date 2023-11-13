@@ -165,3 +165,4 @@ data/*
 models
 !src/models
 *.pth
+performance/*

@@ -13,9 +13,8 @@ class DesignedModel(BaseModel):
         n_base_channels = 16,
         n_lgn_channels = 32,
         n_fully_connected = 128):
-        super(DesignedModel, self).__init__()
-
-        self.img_size = img_size
+        super(DesignedModel, self).__init__(img_size)
+        
         self.num_classes = num_classes
         self.in_channels = in_channels
         self.n_base_channels = n_base_channels

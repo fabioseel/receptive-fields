@@ -112,7 +112,7 @@ def effective_receptive_field(model: nn.Sequential, n_batch: int = 2048, fill_va
 
 
 def single_effective_receptive_field(
-    model: nn.Sequential,
+    model: nn.Module,
     output_signal: torch.tensor,
     input_size: torch.Size,
     n_batch: int = 2048,
@@ -168,7 +168,7 @@ def get_input_output_shape(model: nn.Sequential):
     _first = 0
     down_stream_linear = False
     num_outputs = None
-    for layer in reversed(model):
+    for i, layer in enumerate(reversed(model)):
         _first += 1
         if isinstance(layer, nn.Linear):
             num_outputs = layer.out_features
@@ -181,9 +181,14 @@ def get_input_output_shape(model: nn.Sequential):
             in_channels = layer.in_channels
             in_size = layer.in_channels * ((layer.kernel_size[0]-1)*layer.dilation[0]+1) ** 2
             break
-        elif  isinstance(layer, nn.MaxPool2d) or isinstance(layer, nn.AvgPool2d) or isinstance(layer, L2Pool):
-            in_channels = 1
-            in_size = layer.kernel_size**2
+        elif isinstance(layer, nn.MaxPool2d) or isinstance(layer, nn.AvgPool2d) or isinstance(layer, L2Pool):
+            for prev_layer in reversed(model[:-i-1]):
+                if isinstance(prev_layer, nn.Conv2d) or isinstance(prev_layer, ModConv2d):
+                    in_channels = prev_layer.out_channels
+                    break
+                elif isinstance(prev_layer, nn.Linear):
+                    in_channels=1
+            in_size = layer.kernel_size**2 * in_channels
             break
 
     for i, layer in enumerate(reversed(model[:-_first])):
@@ -194,12 +199,6 @@ def get_input_output_shape(model: nn.Sequential):
             in_size = layer.in_features
             down_stream_linear = True
         elif isinstance(layer, nn.Conv2d) or isinstance(layer, ModConv2d):
-            for prev_layer in reversed(model[:-i-_first]):
-                if isinstance(prev_layer, nn.Conv2d) or isinstance(prev_layer, ModConv2d):
-                    in_channels = prev_layer.out_channels
-                    break
-                elif isinstance(prev_layer, nn.Linear):
-                    in_channels=1
             if num_outputs is None:
                 num_outputs = layer.out_channels
             in_size = math.sqrt(in_size / in_channels)
@@ -211,7 +210,7 @@ def get_input_output_shape(model: nn.Sequential):
             )
             in_size = in_size**2 * in_channels
         elif isinstance(layer, nn.MaxPool2d) or isinstance(layer, nn.AvgPool2d) or isinstance(layer, L2Pool):
-            for prev_layer in reversed(model[:-i-_first]):
+            for prev_layer in reversed(model[:-i-_first-1]):
                 if isinstance(prev_layer, nn.Conv2d) or isinstance(prev_layer, ModConv2d):
                     in_channels = prev_layer.out_channels
                     break

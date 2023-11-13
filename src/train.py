@@ -31,6 +31,12 @@ print("Enabled history saving: ", args.save_hist)
 filepath = args.config
 
 model = load_model(filepath)
+# for i in range(1, len(model.retina)):
+#     for param in model.retina[i].parameters():
+#         param.requires_grad = False
+# for i in range(len(model.fc)-1):
+#     for param in model.fc[i].parameters():
+#         param.requires_grad = False
 optimizer = optim.RMSprop(model.parameters(), lr=args.lr, weight_decay=1e-6)
 
 
@@ -40,7 +46,7 @@ if model.in_channels == 1:
 
 if args.dataset == "stl10":
     if model.img_size != 96:
-        transf.append(transforms.Resize((model.img_size, model.img_size), antialias=True))
+        transf.append(transforms.Resize(model.img_size, antialias=True))
     train_data = datasets.STL10(
         root="../data", split="train", download=True, transform=transforms.Compose(transf)
     )
@@ -49,13 +55,17 @@ if args.dataset == "stl10":
     )
 else:
     if model.img_size != 32:
-        transf.append(transforms.Resize((model.img_size, model.img_size), antialias=True))
+        transf.append(transforms.Resize(model.img_size, antialias=True))
     train_data = datasets.CIFAR10(
         root="../data", train=True, download=True, transform=transforms.Compose(transf)
     )
     test_data = datasets.CIFAR10(
         root="../data", train=False, download=True, transform=transforms.Compose(transf)
     )
+
+if args.save_hist:
+    if not Path.exists(filepath):
+        Path.mkdir(filepath)
 
 train_loader = DataLoader(train_data, batch_size=args.batch_size, shuffle=True, num_workers=4, prefetch_factor=4)
 test_loader = DataLoader(test_data, batch_size=args.batch_size, shuffle=False, num_workers=4, prefetch_factor=4)
@@ -82,6 +92,21 @@ log_dict['train_acc'] = []
 log_dict['val_acc'] = []
 while not stop:
     epoch_train_loss, epoch_train_acc = train(model, optimizer, train_loader, device)
+
+    # if i_epoch % 5 == 0:
+    #     defreeze_no = i_epoch // 5
+    #     if defreeze_no < len(model.fc):
+    #         for param in model.fc[len(model.fc)-defreeze_no-1].parameters():
+    #             param.requires_grad = True
+    #     if defreeze_no < 4:
+    #         conv_layers_retina = [0,3,6,8]
+    #         for param in model.retina[conv_layers_retina[defreeze_no]].parameters():
+    #             param.requires_grad = True
+    
+    # if i_epoch==20:
+    #     for param in model.retina[0].parameters():
+    #         param.requires_grad = False
+
     # Print training loss for this epoch
     print(
         f"Epoch {i_epoch} - Training Loss: {epoch_train_loss}, Avg. Accuracy: {epoch_train_acc}"
@@ -89,8 +114,9 @@ while not stop:
     epoch_val_acc = validate(model, test_loader, device)
     print(f"Epoch {i_epoch} - Test Accuracy: {epoch_val_acc}%")
 
+
     if args.save_hist:
-        model.save(filepath+"_e{:02d}".format(i_epoch))
+        model.save(Path(filepath).join("e{:02d}").format(i_epoch))
 
     if epoch_val_acc > prev_best_acc:
         prev_best_acc = epoch_val_acc

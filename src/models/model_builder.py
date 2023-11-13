@@ -9,17 +9,17 @@ from torchvision import transforms
 from torch.utils.data import DataLoader
 from torchvision import datasets
 
-def load_model(path) -> nn.Module:
+def load_model(path, weights_file=None) -> nn.Module:
     with open(path+".cfg", "r") as file:
         config = yaml.load(file, Loader=yaml.FullLoader)
     if config['type'] == "lindsey":
-        model = LindseyNet.load(path)
+        model = LindseyNet.load(path, weights_file)
     elif config['type'] == "retinal":
-        model = RetinalModel.load(path)
+        model = RetinalModel.load(path, weights_file)
     elif config['type'] == "designed":
-        model = DesignedModel.load(path)
+        model = DesignedModel.load(path, weights_file)
     else:
-        model = SimpleCNN.load(path)
+        model = SimpleCNN.load(path, weights_file)
     return model
 
 def open_experiment(path, train_data=True, test_data=False, batch_size=10):
@@ -30,7 +30,7 @@ def open_experiment(path, train_data=True, test_data=False, batch_size=10):
     if in_channels==1:
         transf.append(transforms.Grayscale())
     if img_size != 32:
-        transf.append(transforms.Resize((img_size, img_size), antialias=True))
+        transf.append(transforms.Resize(img_size, antialias=True))
 
     if train_data==True:
         train_data = datasets.CIFAR10(root="../data", train=True, download=True, transform=transforms.Compose(transf))

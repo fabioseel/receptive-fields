@@ -23,8 +23,7 @@ class SimpleCNN(BaseModel):
         separable=False,
         num_skip_layers=None
     ):
-        super(SimpleCNN, self).__init__()
-        self.img_size = img_size
+        super(SimpleCNN, self).__init__(img_size)
         self.num_classes = num_classes
         self.num_layers = num_layers
         self.in_channels = in_channels

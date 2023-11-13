@@ -25,9 +25,8 @@ class LindseyNet(BaseModel):
         vvs_channels = 32,
         first_fc = 1024
     ):
-        super(LindseyNet, self).__init__()
-
-        self.img_size = img_size
+        super(LindseyNet, self).__init__(img_size)
+        
         self.num_classes=num_classes
         self.in_channels=in_channels
         self.kernel_size=kernel_size
