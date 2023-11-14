@@ -5,8 +5,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-from models.simple import SeparableConv2d, ResConv2d, ModConv2d
-from util import L2Pool
+from modules import SeparableConv2d, ResConv2d, ModConv2d, GaborConv2d, L2Pool
 
 
 def normalizeZeroOne(input):
@@ -62,6 +61,16 @@ def remove_padding(model: nn.Sequential):
                                      padding=0, dilation=module.dilation, groups=module.groups)
                 new_conv.weight = module.weight
                 new_conv.bias = module.bias
+                new_model.append(new_conv)
+            elif isinstance(module, GaborConv2d):
+                new_conv = GaborConv2d(module.in_channels, module.out_channels, module.kernel_size, module.stride,
+                                     padding=0, dilation=module.dilation, groups=module.groups)
+                new_conv.bias = module.bias
+                new_conv.weight = module.weight
+                new_conv.freq = module.freq
+                new_conv.theta = module.theta
+                new_conv.sigma = module.sigma
+                new_conv.psi = module.psi
                 new_model.append(new_conv)
             elif isinstance(module, SeparableConv2d):
                 new_conv = SeparableConv2d(module.vertical_conv.in_channels, module.horizontal_conv.out_channels, module.vertical_conv.kernel_size[0], module.vertical_conv.stride[0],

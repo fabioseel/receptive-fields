@@ -1,5 +1,5 @@
 import argparse
-from pathlib import Path
+import os
 
 import matplotlib.pyplot as plt
 import torch.optim as optim
@@ -64,8 +64,8 @@ else:
     )
 
 if args.save_hist:
-    if not Path.exists(filepath):
-        Path.mkdir(filepath)
+    if not os.path.exists(filepath):
+        os.mkdir(filepath)
 
 train_loader = DataLoader(train_data, batch_size=args.batch_size, shuffle=True, num_workers=4, prefetch_factor=4)
 test_loader = DataLoader(test_data, batch_size=args.batch_size, shuffle=False, num_workers=4, prefetch_factor=4)
@@ -78,8 +78,8 @@ model.to(device)
 
 i_epoch = 0
 stop=False
-
-log_file = Path("../models").joinpath(*[d for d in Path(filepath).parts[:-1]],"logs", Path(filepath).name+".yaml")
+_path_dir, _file_name = os.path.split(filepath)
+log_file = os.path.join("../models", _path_dir,"logs", _file_name+".yaml")
 
 log_dict =  {}
 log_dict['model_config'] = args.config
@@ -116,7 +116,7 @@ while not stop:
 
 
     if args.save_hist:
-        model.save(Path(filepath).join("e{:02d}").format(i_epoch))
+        model.save(os.path.join(filepath,"e{:02d}".format(i_epoch)))
 
     if epoch_val_acc > prev_best_acc:
         prev_best_acc = epoch_val_acc

@@ -1,5 +1,6 @@
 import math
 from os import path
+from torch.nn.modules.utils import _pair
 
 import torch
 import torch.nn as nn
@@ -47,7 +48,4 @@ class BaseModel(nn.Module, ABC):
         return self._img_size
     @img_size.setter
     def img_size(self, value):
-        if isinstance(value, int):
-            self._img_size = (value, value)
-        else:
-            self._img_size = value
+        self._img_size = _pair(value)

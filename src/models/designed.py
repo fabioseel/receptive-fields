@@ -2,8 +2,7 @@ import torch.nn as nn
 from models.base_model import BaseModel
 from torch import nn
 import torch
-from models.simple import SeparableConv2d
-from util import L2Pool
+from modules import L2Pool, SeparableConv2d
 
 class DesignedModel(BaseModel):
     def __init__(self, 
