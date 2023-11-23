@@ -2,6 +2,7 @@ from models.designed import DesignedModel
 from models.lindsey import LindseyNet
 from models.simple import SimpleCNN
 from models.retinal import RetinalModel
+from models.alexnet import AlexNet
 from torch import nn
 import yaml
 
@@ -18,6 +19,8 @@ def load_model(path, weights_file=None) -> nn.Module:
         model = RetinalModel.load(path, weights_file)
     elif config['type'] == "designed":
         model = DesignedModel.load(path, weights_file)
+    elif config['type'] == "alexnet":
+        model = AlexNet.load(path, weights_file)
     else:
         model = SimpleCNN.load(path, weights_file)
     return model
