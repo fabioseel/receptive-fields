@@ -40,6 +40,7 @@ class GaborConv2d(ModConv2d):
         padding_mode="zeros" # TODO: implement padding_mode
     ):
         """
+        !!! not working, some problem with the gradient apparently!!!
         Convolutional layer described by a Gabor, only the gabor parameters are learnable
         https://github.com/iKintosh/GaborNet/blob/master/GaborNet/GaborLayer.py
         """
@@ -143,6 +144,28 @@ class GaborConv2d(ModConv2d):
         g = g * torch.cos(freq * rotx + psi)
         g = g / (2 * math.pi * sigma ** 2)
         self.weight.data = g
+
+class DepthwiseSeparableConv2d(ModConv2d):
+    def __init__(
+        self,
+        in_channels,
+        out_channels,
+        kernel_size,
+        stride=1,
+        padding=0,
+        dilation=1,
+        bias=True,
+        padding_mode="zeros"
+    ):
+        super(DepthwiseSeparableConv2d, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation, bias)
+        self.depth_conv = torch.nn.Conv2d(in_channels, in_channels, kernel_size, stride, padding, dilation, bias=False, groups=in_channels, padding_mode=padding_mode)
+        self.point_conv = torch.nn.Conv2d(in_channels, out_channels, kernel_size=1, bias=bias)
+        
+    def forward(self, x):
+        x = self.depth_conv(x)
+        x = self.point_conv(x)
+        return x
+
 
 class SeparableConv2d(ModConv2d):
     def __init__(
