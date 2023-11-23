@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>2023-11-21.md</title>
+<meta http-equiv="Content-type" content="text/html;charset=UTF-8">
+
+<style>
+/* https://github.com/microsoft/vscode/blob/master/extensions/markdown-language-features/media/markdown.css */
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+body {
+	font-family: var(--vscode-markdown-font-family, -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif);
+	font-size: var(--vscode-markdown-font-size, 14px);
+	padding: 0 26px;
+	line-height: var(--vscode-markdown-line-height, 22px);
+	word-wrap: break-word;
+	max-width: 1200px;
+}
+
+#code-csp-warning {
+	position: fixed;
+	top: 0;
+	right: 0;
+	color: white;
+	margin: 16px;
+	text-align: center;
+	font-size: 12px;
+	font-family: sans-serif;
+	background-color:#444444;
+	cursor: pointer;
+	padding: 6px;
+	box-shadow: 1px 1px 1px rgba(0,0,0,.25);
+}
+
+#code-csp-warning:hover {
+	text-decoration: none;
+	background-color:#007acc;
+	box-shadow: 2px 2px 2px rgba(0,0,0,.25);
+}
+
+body.scrollBeyondLastLine {
+	margin-bottom: calc(100vh - 22px);
+}
+
+body.showEditorSelection .code-line {
+	position: relative;
+}
+
+body.showEditorSelection .code-active-line:before,
+body.showEditorSelection .code-line:hover:before {
+	content: "";
+	display: block;
+	position: absolute;
+	top: 0;
+	left: -12px;
+	height: 100%;
+}
+
+body.showEditorSelection li.code-active-line:before,
+body.showEditorSelection li.code-line:hover:before {
+	left: -30px;
+}
+
+.vscode-light.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.15);
+}
+
+.vscode-light.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.40);
+}
+
+.vscode-light.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-dark.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.4);
+}
+
+.vscode-dark.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.60);
+}
+
+.vscode-dark.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-high-contrast.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 160, 0, 0.7);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 160, 0, 1);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+img {
+	max-width: 100%;
+	max-height: 100%;
+}
+
+a {
+	text-decoration: none;
+}
+
+a:hover {
+	text-decoration: underline;
+}
+
+a:focus,
+input:focus,
+select:focus,
+textarea:focus {
+	outline: 1px solid -webkit-focus-ring-color;
+	outline-offset: -1px;
+}
+
+hr {
+	border: 0;
+	height: 2px;
+	border-bottom: 2px solid;
+}
+
+h1 {
+	padding-bottom: 0.3em;
+	line-height: 1.2;
+	border-bottom-width: 1px;
+	border-bottom-style: solid;
+}
+
+h1, h2, h3 {
+	font-weight: normal;
+}
+
+table {
+	border-collapse: collapse;
+}
+
+table > thead > tr > th {
+	text-align: left;
+	border-bottom: 1px solid;
+}
+
+table > thead > tr > th,
+table > thead > tr > td,
+table > tbody > tr > th,
+table > tbody > tr > td {
+	padding: 5px 10px;
+}
+
+table > tbody > tr + tr > td {
+	border-top: 1px solid;
+}
+
+blockquote {
+	margin: 0 7px 0 5px;
+	padding: 0 16px 0 10px;
+	border-left-width: 5px;
+	border-left-style: solid;
+}
+
+code {
+	font-family: Menlo, Monaco, Consolas, "Droid Sans Mono", "Courier New", monospace, "Droid Sans Fallback";
+	font-size: 1em;
+	line-height: 1.357em;
+}
+
+body.wordWrap pre {
+	white-space: pre-wrap;
+}
+
+pre:not(.hljs),
+pre.hljs code > div {
+	padding: 16px;
+	border-radius: 3px;
+	overflow: auto;
+}
+
+pre code {
+	color: var(--vscode-editor-foreground);
+	tab-size: 4;
+}
+
+/** Theming */
+
+.vscode-light pre {
+	background-color: rgba(220, 220, 220, 0.4);
+}
+
+.vscode-dark pre {
+	background-color: rgba(10, 10, 10, 0.4);
+}
+
+.vscode-high-contrast pre {
+	background-color: rgb(0, 0, 0);
+}
+
+.vscode-high-contrast h1 {
+	border-color: rgb(0, 0, 0);
+}
+
+.vscode-light table > thead > tr > th {
+	border-color: rgba(0, 0, 0, 0.69);
+}
+
+.vscode-dark table > thead > tr > th {
+	border-color: rgba(255, 255, 255, 0.69);
+}
+
+.vscode-light h1,
+.vscode-light hr,
+.vscode-light table > tbody > tr + tr > td {
+	border-color: rgba(0, 0, 0, 0.18);
+}
+
+.vscode-dark h1,
+.vscode-dark hr,
+.vscode-dark table > tbody > tr + tr > td {
+	border-color: rgba(255, 255, 255, 0.18);
+}
+
+</style>
+
+<style>
+/* Tomorrow Theme */
+/* http://jmblog.github.com/color-themes-for-google-code-highlightjs */
+/* Original theme - https://github.com/chriskempson/tomorrow-theme */
+
+/* Tomorrow Comment */
+.hljs-comment,
+.hljs-quote {
+	color: #8e908c;
+}
+
+/* Tomorrow Red */
+.hljs-variable,
+.hljs-template-variable,
+.hljs-tag,
+.hljs-name,
+.hljs-selector-id,
+.hljs-selector-class,
+.hljs-regexp,
+.hljs-deletion {
+	color: #c82829;
+}
+
+/* Tomorrow Orange */
+.hljs-number,
+.hljs-built_in,
+.hljs-builtin-name,
+.hljs-literal,
+.hljs-type,
+.hljs-params,
+.hljs-meta,
+.hljs-link {
+	color: #f5871f;
+}
+
+/* Tomorrow Yellow */
+.hljs-attribute {
+	color: #eab700;
+}
+
+/* Tomorrow Green */
+.hljs-string,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-addition {
+	color: #718c00;
+}
+
+/* Tomorrow Blue */
+.hljs-title,
+.hljs-section {
+	color: #4271ae;
+}
+
+/* Tomorrow Purple */
+.hljs-keyword,
+.hljs-selector-tag {
+	color: #8959a8;
+}
+
+.hljs {
+	display: block;
+	overflow-x: auto;
+	color: #4d4d4c;
+	padding: 0.5em;
+}
+
+.hljs-emphasis {
+	font-style: italic;
+}
+
+.hljs-strong {
+	font-weight: bold;
+}
+</style>
+
+<style>
+/*
+ * Markdown PDF CSS
+ */
+
+ body {
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif, "Meiryo";
+	padding: 0 12px;
+}
+
+pre {
+	background-color: #f8f8f8;
+	border: 1px solid #cccccc;
+	border-radius: 3px;
+	overflow-x: auto;
+	white-space: pre-wrap;
+	overflow-wrap: break-word;
+}
+
+pre:not(.hljs) {
+	padding: 23px;
+	line-height: 19px;
+}
+
+blockquote {
+	background: rgba(127, 127, 127, 0.1);
+	border-color: rgba(0, 122, 204, 0.5);
+}
+
+.emoji {
+	height: 1.4em;
+}
+
+code {
+	font-size: 14px;
+	line-height: 19px;
+}
+
+/* for inline code */
+:not(pre):not(.hljs) > code {
+	color: #C9AE75; /* Change the old color so it seems less like an error */
+	font-size: inherit;
+}
+
+/* Page Break : use <div class="page"/> to insert page break
+-------------------------------------------------------- */
+.page {
+	page-break-after: always;
+}
+
+</style>
+
+<script src="https://unpkg.com/mermaid/dist/mermaid.min.js"></script>
+</head>
+<body>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: document.body.classList.contains('vscode-dark') || document.body.classList.contains('vscode-high-contrast')
+          ? 'dark'
+          : 'default'
+    });
+  </script>
+<h1 id="update-2023-11-21">Update 2023-11-21</h1>
+<h1 id="receptive-fields">Receptive fields</h1>
+<h2 id="kernel-size">Kernel size</h2>
+<p>Kernels after last conv layer in architecture shown:</p>
+<pre class="hljs"><code><div>Sequential(
+  (0): Conv2d(1, 32, kernel_size=(9, 9), stride=(1, 1), padding=(4, 4)) &lt;--- greyscale input
+  (1): ReLU(inplace=True)
+  (2): Conv2d(32, 1, kernel_size=(9, 9), stride=(1, 1), padding=(4, 4)) &lt;--- note: bottleneck
+  (3): ReLU(inplace=True)
+  (4): Conv2d(1, 32, kernel_size=(9, 9), stride=(1, 1), padding=(4, 4))
+  (5): ReLU(inplace=True)
+  (6): Conv2d(32, 32, kernel_size=(9, 9), stride=(1, 1), padding=(4, 4)) &lt;--- RFs from here
+  (7): ReLU(inplace=True)
+  (8): Flatten(start_dim=1, end_dim=-1)
+  (9): Linear(in_features=32768, out_features=1024, bias=True)
+  (10): ReLU(inplace=True)
+  (11): Linear(in_features=1024, out_features=10, bias=True)
+  (12): Softmax(dim=-1)
+)
+</div></code></pre>
+<p>Kernel size = 9 (orig)
+<img src="../../imgs/kernel_size/lindsey_ks9.png" alt="">
+Kernel size = 7
+<img src="../../imgs/kernel_size/lindsey_ks7.png" alt="">
+Kernel size = 5
+<img src="../../imgs/kernel_size/lindsey_ks5.png" alt="">
+Kernel size = 3
+<img src="../../imgs/kernel_size/lindsey_ks3.png" alt=""></p>
+<p>-&gt; Kernel size does <em>not</em> matter as much!</p>
+<h2 id="activation-functions">Activation Functions</h2>
+<p>Kernel size 5, color input</p>
+<p>ELU » ~ 52% accuracy
+<img src="../../imgs/act_func/elu.png" alt="">
+GELU » ~ 54% accuracy
+<img src="../../imgs/act_func/gelu.png" alt="">
+SELU » ~ 50% accuracy
+<img src="../../imgs/act_func/selu.png" alt="">
+Tanh » ~ 53% accuracy
+<img src="../../imgs/act_func/tanh.png" alt="">
+RELU » ~ 62% accuracy</p>
+<ul>
+<li>act functions have a huge impact</li>
+<li>closer to 0 for neg -&gt; better RFs?
+<img src="../../imgs/act_func/gelu_relu_elu_comp.png" alt=""></li>
+</ul>
+<p>-&gt; Use GELU!</p>
+<h2 id="pooling">Pooling</h2>
+<p>Pool in early layers:</p>
+<pre class="hljs"><code><div>Sequential(
+  (0): Conv2d(3, 32, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+  (1): GELU(approximate='none')
+  (2): AvgPool2d(kernel_size=2, stride=2, padding=0)                    &lt;--- Pool
+  (3): Conv2d(32, 1, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)) &lt;--- RFs shown
+  (4): GELU(approximate='none')
+  (5): AvgPool2d(kernel_size=2, stride=2, padding=0)                    &lt;--- Pool
+  (6): Conv2d(1, 32, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)) &lt;--- RFs shown
+  (7): GELU(approximate='none')
+  (8): Conv2d(32, 32, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)) &lt;--- RFs shown
+  (9): GELU(approximate='none')
+  (10): Flatten(start_dim=1, end_dim=-1)
+  (11): Linear(in_features=2048, out_features=1024, bias=True)
+  (12): GELU(approximate='none')
+  (13): Linear(in_features=1024, out_features=10, bias=True)
+  (14): Softmax(dim=-1)
+)
+</div></code></pre>
+<p>Bottleneck:
+<img src="../../imgs/pool/pool_retina_bottleneck.png" alt="">
+Mid:
+<img src="../../imgs/pool/pool_retina_mid.png" alt="">
+Last:
+<img src="../../imgs/pool/pool_retina_late.png" alt=""></p>
+<p>Pool in late layers:</p>
+<pre class="hljs"><code><div>Sequential(
+  (0): Conv2d(3, 32, kernel_size=(5, 5), stride=(1, 1), padding=(2, 2))
+  (1): ReLU(inplace=True)
+  (2): Conv2d(32, 1, kernel_size=(5, 5), stride=(1, 1), padding=(2, 2)) &lt;--- RFs shown
+  (3): ReLU(inplace=True)
+  (4): Conv2d(1, 32, kernel_size=(5, 5), stride=(1, 1), padding=(2, 2)) &lt;--- RFs shown
+  (5): ReLU(inplace=True)
+  (6): AvgPool2d(kernel_size=2, stride=2, padding=0)                    &lt;--- Pool
+  (7): Conv2d(32, 32, kernel_size=(5, 5), stride=(1, 1), padding=(2, 2)) &lt;--- RFs shown
+  (8): ReLU(inplace=True)
+  (9): AvgPool2d(kernel_size=2, stride=2, padding=0)                    &lt;--- Pool
+  (10): Flatten(start_dim=1, end_dim=-1)
+  (11): Linear(in_features=2048, out_features=1024, bias=True)
+  (12): ReLU(inplace=True)
+  (13): Linear(in_features=1024, out_features=10, bias=True)
+  (14): Softmax(dim=-1)
+)
+</div></code></pre>
+<p>Bottleneck:
+<img src="../../imgs/pool/pool_vvs_bottleneck.png" alt="">
+Mid:
+<img src="../../imgs/pool/pool_vvs_mid.png" alt="">
+Last:
+<img src="../../imgs/pool/pool_vvs_late.png" alt=""></p>
+<p>Pool everywhere:</p>
+<pre class="hljs"><code><div>Sequential(
+  (0): Conv2d(3, 32, kernel_size=(5, 5), stride=(1, 1), padding=(2, 2))
+  (1): ReLU(inplace=True)
+  (2): AvgPool2d(kernel_size=2, stride=2, padding=0)                    &lt;--- Pool
+  (3): Conv2d(32, 1, kernel_size=(5, 5), stride=(1, 1), padding=(2, 2)) &lt;--- RFs shown
+  (4): ReLU(inplace=True)
+  (5): AvgPool2d(kernel_size=2, stride=2, padding=0)                    &lt;--- Pool
+  (6): Conv2d(1, 32, kernel_size=(5, 5), stride=(1, 1), padding=(2, 2)) &lt;--- RFs shown
+  (7): ReLU(inplace=True)
+  (8): AvgPool2d(kernel_size=2, stride=2, padding=0)                    &lt;--- Pool
+  (9): Conv2d(32, 32, kernel_size=(5, 5), stride=(1, 1), padding=(2, 2)) &lt;--- RFs shown
+  (10): ReLU(inplace=True)
+  (11): AvgPool2d(kernel_size=2, stride=2, padding=0)                    &lt;--- Pool
+  (12): Flatten(start_dim=1, end_dim=-1)
+  (13): Linear(in_features=128, out_features=1024, bias=True)
+  (14): ReLU(inplace=True)
+  (15): Linear(in_features=1024, out_features=10, bias=True)
+  (16): Softmax(dim=-1)
+)
+</div></code></pre>
+<p>Bottleneck:
+<img src="../../imgs/pool/pool_both_bottleneck.png" alt="">
+Mid:
+<img src="../../imgs/pool/pool_both_mid.png" alt="">
+Last:
+<img src="../../imgs/pool/pool_both_late.png" alt=""></p>
+<ul>
+<li>Pooling has a huge impact (! but consecutive conv layers &quot;recover&quot;) -&gt; only pool after first layer? Influence on time not that big in the end...</li>
+</ul>
+<h1 id="rf-development-through-training">RF development through training</h1>
+
+<object type="text/html" data="../../imgs/rf_development/retinal_l0.html"></object>
+<ul>
+<li><a href="../../imgs/rf_development/retinal_l0.html">Retinal first layer</a></li>
+<li><a href="../../imgs/rf_development/retinal_l8.html">Retinal last layer</a></li>
+<li><a href="../../imgs/rf_development/lindsey_l0.html">Lindsey first layer</a></li>
+<li><a href="../../imgs/rf_development/lindsey_l6.html">Lindsey last layer</a></li>
+</ul>
+<h1 id="time-consumption">Time consumption</h1>
+<h2 id="contribution-to-training-time">Contribution to training time</h2>
+<p><img src="../../imgs/time_analysis/time_comp_retinal_model.png" alt=""></p>
+<ul>
+<li>most expensive: backwards pass through first conv layer and pool</li>
+<li>first layers weights almost dont change... -&gt; freezing helps, for 160x120 only half the computation time!</li>
+<li>reduce number of channels here!</li>
+<li>alternative: combine first two layers (conv with stride)</li>
+</ul>
+<h2 id="individual-analysis">Individual analysis</h2>
+<p>model: only conv layer
+<img src="../../imgs/time_analysis/conv_layer_only_backwards.png" alt=""></p>
+<p>model: conv layer and avg pool
+<img src="../../imgs/time_analysis/conv_layer+avgpool_backwards.png" alt=""></p>
+<h1 id="outlook--ideas-backlog">Outlook / ideas backlog</h1>
+<ul>
+<li>make transform to embed images in RL-viewport (160x120)
+<ul>
+<li>how &quot;far&quot; still able to detect somewhat reliably?</li>
+<li>able to encode position?</li>
+</ul>
+</li>
+<li>combine ideas in retinal &amp; analyze</li>
+<li>continue time consumption analysis</li>
+</ul>
+
+</body>
+</html>

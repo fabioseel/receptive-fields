@@ -166,3 +166,4 @@ models
 !src/models
 *.pth
 performance/*
+imgs/**/*.html
