@@ -6,6 +6,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from modules import SeparableConv2d, ResConv2d, ModConv2d, GaborConv2d, L2Pool
+from matplotlib import pyplot as plt
 
 
 def normalizeZeroOne(input):
@@ -17,7 +18,28 @@ def sum_collapse_output(out_tensor):
         out_tensor = torch.sum(out_tensor, dim=sum_dims)
     return out_tensor
 
-
+def multiplot(eff_rfs, color=True, individ_normalize = True, max_plots = 64):
+    if not color:
+        eff_rfs = eff_rfs.flatten(0,1)
+    if len(eff_rfs)==1:
+        plt.imshow(torch.mean(eff_rfs, dim=0), cmap="gray")
+        plt.axis('off')
+    else:
+        num_plots = min(max_plots,len(eff_rfs))
+        num_rows = max(1,num_plots//8)
+        fig, axes = plt.subplots(num_rows, 8, figsize=(24,num_rows*3))
+        if not individ_normalize:
+            eff_rfs = normalizeZeroOne(eff_rfs)
+        for i, (eff_rf, ax) in enumerate(zip(eff_rfs, axes.flat)):
+            if individ_normalize:
+                eff_rf = normalizeZeroOne(eff_rf)
+            if len(eff_rf.shape) == 3:
+                eff_rf=eff_rf.swapaxes(0,2)
+            ax.imshow(eff_rf, vmin=0, vmax=1, cmap="gray")
+            ax.set_title(str(i))
+        for ax in axes.flat:
+            ax.axis('off')
+            
 def _dataset_average(
     model: nn.Module, dataloader: DataLoader, desired_output=torch.Tensor, device=None
 ):
