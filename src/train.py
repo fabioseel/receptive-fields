@@ -79,7 +79,10 @@ model.to(device)
 i_epoch = 0
 stop=False
 _path_dir, _file_name = os.path.split(filepath)
-log_file = os.path.join("../models", _path_dir,"logs", _file_name+".yaml")
+log_dir = os.path.join("../models", _path_dir,"logs")
+if not os.path.exists(log_dir):
+    os.mkdir(log_dir)
+log_file = os.path.join(log_dir, _file_name+".yaml")
 
 log_dict =  {}
 log_dict['model_config'] = args.config

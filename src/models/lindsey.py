@@ -23,7 +23,11 @@ class LindseyNet(BaseModel):
         bottleneck_channels=1,
         vvs_layers=2,
         vvs_channels = 32,
-        first_fc = 1024
+        first_fc = 1024,
+        activation = "relu",
+        dropout = 0.0,
+        pool_retina = False,
+        pool_vvs = False
     ):
         super(LindseyNet, self).__init__(img_size)
         
@@ -37,6 +41,21 @@ class LindseyNet(BaseModel):
         self.vvs_layers=vvs_layers
         self.vvs_channels =vvs_channels
         self.first_fc = first_fc
+        self.activation = activation
+        self.dropout = dropout
+        self.pool_retina = pool_retina
+        self.pool_vvs = pool_vvs
+
+        if self.activation == "elu":
+            self._activation_func = nn.ELU(inplace=True)
+        elif self.activation == "selu":
+            self._activation_func = nn.SELU(inplace=True)
+        elif self.activation == "gelu":
+            self._activation_func = nn.GELU()
+        elif self.activation == "tanh":
+            self._activation_func = nn.Tanh()
+        else: # relu or anything els
+            self._activation_func = nn.ReLU(inplace=True)
 
         # Define Retina
         self.retina = nn.Sequential()
@@ -49,23 +68,36 @@ class LindseyNet(BaseModel):
                 _out_channels = bottleneck_channels
                 _stride =  retina_out_stride
 
-            _padding = calc_same_pad(img_size, kernel_size, _stride)
+            _padding = calc_same_pad(self.img_size[0], kernel_size, _stride)
             self.retina.append(nn.Conv2d(_in_channels, _out_channels, kernel_size=kernel_size, stride=_stride, padding=_padding))
-            self.retina.append(nn.ReLU())
+            self.retina.append(self._activation_func)
+            if self.dropout > 0:
+                self.retina.append(nn.Dropout(self.dropout))
+            if self.pool_retina:
+                self.retina.append(nn.AvgPool2d(2))
 
         # Define VVS
         self.vvs = nn.Sequential()
         for layer in range(vvs_layers):
             _in_channels = vvs_channels if layer != 0 else bottleneck_channels
 
-            _padding = calc_same_pad(img_size, kernel_size)
+            _padding = calc_same_pad(self.img_size[0], kernel_size)
             self.vvs.append(nn.Conv2d(_in_channels, vvs_channels, kernel_size=kernel_size, padding=_padding))
-            self.vvs.append(nn.ReLU())
+            self.vvs.append(self._activation_func)
+            if self.dropout > 0:
+                self.vvs.append(nn.Dropout(self.dropout))
+            if self.pool_vvs:
+                self.vvs.append(nn.AvgPool2d(2))
 
         self.fc = nn.Sequential()
         self.fc.append(nn.Flatten())
-        self.fc.append(nn.Linear(vvs_channels*img_size**2, first_fc))
-        self.fc.append(nn.ReLU())
+
+        x=torch.empty((1,in_channels, self.img_size[0], self.img_size[1]))
+        test_out = self.retina(x)
+        test_out = self.vvs(test_out)
+        test_out = self.fc(test_out)
+        self.fc.append(nn.Linear(test_out.shape[1], first_fc))
+        self.fc.append(self._activation_func)
         self.fc.append(nn.Linear(first_fc, num_classes))
         self.softmax = nn.Softmax(dim=-1)
 
@@ -100,5 +132,9 @@ class LindseyNet(BaseModel):
             "bottleneck_channels":self.bottleneck_channels,
             "vvs_layers":self.vvs_layers,
             "vvs_channels" :self.vvs_channels,
-            "first_fc" : self.first_fc
+            "first_fc" : self.first_fc,
+            "activation" : self.activation,
+            "dropout" : self.dropout,
+            "pool_retina" : self.pool_retina,
+            "pool_vvs" : self.pool_vvs
         }}

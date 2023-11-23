@@ -15,7 +15,11 @@ class RetinalModel(BaseModel):
         padding = None,
         ceil_mode=False,
         l1_conv_type="regular",
-        l1_kernel_size=3):
+        l1_kernel_size=3,
+        l1_n_channels=None,
+        pool = [True, True, True],
+        activation="elu",
+        stride= [1,1,1,1]):
         super(RetinalModel, self).__init__(img_size)
         
         self.num_classes = num_classes
@@ -25,6 +29,21 @@ class RetinalModel(BaseModel):
         self.n_fully_connected = n_fully_connected
         self.l1_conv_type = l1_conv_type
         self.l1_kernel_size = l1_kernel_size
+        self.l1_n_channels = n_base_channels if l1_n_channels is None else l1_n_channels
+        self.pool = pool
+        self.activation = activation
+
+
+        if self.activation == "elu":
+            self._activation_func = nn.ELU(inplace=True)
+        elif self.activation == "selu":
+            self._activation_func = nn.SELU(inplace=True)
+        elif self.activation == "gelu":
+            self._activation_func = nn.GELU()
+        elif self.activation == "tanh":
+            self._activation_func = nn.Tanh()
+        else: # relu or anything els
+            self._activation_func = nn.ReLU(inplace=True)
 
         self.retina = nn.Sequential()
         self.fc = nn.Sequential()
@@ -32,25 +51,29 @@ class RetinalModel(BaseModel):
         padding = 0 if padding is None else padding
         # BP
         if l1_conv_type == "gabor":
-            self.retina.append(GaborConv2d(in_channels, n_base_channels, kernel_size=l1_kernel_size, padding=padding))
+            self.retina.append(GaborConv2d(in_channels, self.l1_n_channels, kernel_size=l1_kernel_size, padding=padding))
         else: # "regular" or anything else not specified
-            self.retina.append(nn.Conv2d(in_channels, n_base_channels, kernel_size=l1_kernel_size, padding=padding))
-        self.retina.append(nn.ELU())
-        self.retina.append(nn.AvgPool2d(kernel_size=3, padding=padding, ceil_mode=ceil_mode))
+            self.retina.append(nn.Conv2d(in_channels, self.l1_n_channels, kernel_size=l1_kernel_size, padding=padding))
+        self.retina.append(self._activation_func)
+        if(self.pool[0]):
+            self.retina.append(nn.AvgPool2d(kernel_size=3, padding=padding, ceil_mode=ceil_mode))
 
         # RGC
-        self.retina.append(nn.Conv2d(n_base_channels, 2*n_base_channels,kernel_size=3, padding=padding))
-        self.retina.append(nn.ELU())
-        self.retina.append(nn.AvgPool2d(kernel_size=3, padding=padding, ceil_mode=ceil_mode))
+        self.retina.append(nn.Conv2d(self.l1_n_channels, 2*n_base_channels,kernel_size=3, padding=padding))
+        self.retina.append(self._activation_func)
+        if(self.pool[1]):
+            self.retina.append(nn.AvgPool2d(kernel_size=3, padding=padding, ceil_mode=ceil_mode))
 
         # LGN
         self.retina.append(nn.Conv2d(2*n_base_channels, n_lgn_channels, kernel_size=1))
-        self.retina.append(nn.ELU())
+        self.retina.append(self._activation_func)
 
         # V1
         self.retina.append(nn.Conv2d(n_lgn_channels, 4*n_base_channels, kernel_size=4, padding=padding))
-        self.retina.append(nn.ELU())
-        self.retina.append(nn.MaxPool2d(kernel_size=4, padding=padding, ceil_mode=ceil_mode))
+        self.retina.append(self._activation_func)
+
+        if(self.pool[0]):
+            self.retina.append(nn.MaxPool2d(kernel_size=4, padding=padding, ceil_mode=ceil_mode))
         self.retina.append(nn.Flatten())
 
         # FC Layers
@@ -71,7 +94,10 @@ class RetinalModel(BaseModel):
             "n_lgn_channels": self.n_lgn_channels,
             "n_fully_connected": self.n_fully_connected,
             "l1_conv_type": self.l1_conv_type,
-            "l1_kernel_size": self.l1_kernel_size
+            "l1_kernel_size": self.l1_kernel_size,
+            "l1_n_channels": self.l1_n_channels,
+            "pool": self.pool,
+            "activation": self.activation
         }}
     
     def get_sequential(self) -> nn.Module:
