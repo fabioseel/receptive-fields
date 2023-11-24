@@ -16,6 +16,9 @@ parser.add_argument("config", type=str)
 parser.add_argument("dataset", type=str)
 parser.add_argument("batch_size", type=int)
 parser.add_argument("lr", type=float)
+parser.add_argument("--optim", type=str, default="rmsprop")
+parser.add_argument("--momentum", type=float, default=0)
+parser.add_argument("--weight_decay", type=float, default=1e-6)
 parser.add_argument("--save_hist", action="store_true", 
                     help="save the weights after each epoch") 
 parser.add_argument("--num_epochs", type=int, default=20, 
@@ -37,7 +40,12 @@ model = load_model(filepath)
 # for i in range(len(model.fc)-1):
 #     for param in model.fc[i].parameters():
 #         param.requires_grad = False
-optimizer = optim.RMSprop(model.parameters(), lr=args.lr, weight_decay=1e-6)
+if args.optim == "rmsprop":
+    optimizer = optim.RMSprop(model.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
+elif args.optim == "sgd":
+    optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
+
+print("using", args.optim, "as optimizer")
 
 
 transf = [transforms.ToTensor()]
@@ -84,11 +92,7 @@ if not os.path.exists(log_dir):
     os.mkdir(log_dir)
 log_file = os.path.join(log_dir, _file_name+".yaml")
 
-log_dict =  {}
-log_dict['model_config'] = args.config
-log_dict['dataset'] = args.dataset
-log_dict['batch_size'] = args.batch_size
-log_dict['lr'] = args.lr
+log_dict =  args.__dict__
 
 log_dict['train_loss'] = []
 log_dict['train_acc'] = []
