@@ -22,7 +22,12 @@ def multiplot(eff_rfs, color=True, individ_normalize = True, max_plots = 64):
     if not color:
         eff_rfs = eff_rfs.flatten(0,1)
     if len(eff_rfs)==1:
-        plt.imshow(torch.mean(eff_rfs, dim=0), cmap="gray")
+        eff_rf = normalizeZeroOne(eff_rfs[0])
+        if len(eff_rf.shape) == 3:
+            eff_rf=eff_rf.swapaxes(0,2)
+        else:
+            eff_rf=eff_rf[0]
+        plt.imshow(eff_rf, vmin=0, vmax=1, cmap="gray")
         plt.axis('off')
     else:
         num_plots = min(max_plots,len(eff_rfs))
