@@ -20,9 +20,10 @@ class SimpleCNN(BaseModel):
         dilation=1,
         separable=False,
         num_skip_layers=None,
-        gabor=False
+        gabor=False,
+        activation="relu"
     ):
-        super(SimpleCNN, self).__init__(img_size)
+        super(SimpleCNN, self).__init__(img_size, activation)
         self.num_classes = num_classes
         self.num_layers = num_layers
         self.in_channels = in_channels
@@ -41,7 +42,6 @@ class SimpleCNN(BaseModel):
         self.conv1 = get_convolution(
             in_channels, num_channels, kernel_size, stride, padding, dilation, separable, num_skip_layers, gabor
         )
-        self.relu = nn.ReLU()
         self.softmax = nn.Softmax(dim=-1)
 
         # Define additional convolutional layers if needed
@@ -66,11 +66,11 @@ class SimpleCNN(BaseModel):
 
     def forward(self, x):
         x = self.conv1(x)
-        x = self.relu(x)
+        x = self._activation_func(x)
 
         for conv_layer in self.extra_conv_layers:
             x = conv_layer(x)
-            x = self.relu(x)
+            x = self._activation_func(x)
 
         x = x.view(x.size(0), -1)  # Flatten the tensor
         x = self.fc(x)
@@ -81,21 +81,23 @@ class SimpleCNN(BaseModel):
     def get_sequential(self): # TODO: how to add skip connections here?
         seq = nn.Sequential()
         seq.append(self.conv1)
-        seq.append(self.relu)
+        seq.append(self._activation_func)
 
         for conv_layer in self.extra_conv_layers:
             seq.append(conv_layer)
-            seq.append(self.relu)
+            seq.append(self._activation_func)
         seq.append(nn.Flatten())
         seq.append(self.fc)
         seq.append(self.softmax)
         return seq
 
-    def config(self) -> dict:
+    @property
+    def classname(self) -> str:
+        return "simple"
+    
+    @property
+    def _config(self) -> dict:
         return {
-            "type" : "simple",
-            "config" : {
-            "img_size": self.img_size,
             "num_classes": self.num_classes,
             "num_layers": self.num_layers,
             "in_channels": self.in_channels,
@@ -107,4 +109,4 @@ class SimpleCNN(BaseModel):
             "separable": self.separable,
             "num_skip_layers": self.num_skip_layers,
             "gabor": self.gabor,
-        }}
+        }

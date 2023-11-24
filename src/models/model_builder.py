@@ -3,6 +3,7 @@ from models.lindsey import LindseyNet
 from models.simple import SimpleCNN
 from models.retinal import RetinalModel
 from models.alexnet import AlexNet
+from models.base_model import BaseModel
 from torch import nn
 import yaml
 
@@ -10,7 +11,7 @@ from torchvision import transforms
 from torch.utils.data import DataLoader
 from torchvision import datasets
 
-def load_model(path, weights_file=None) -> nn.Module:
+def load_model(path, weights_file=None) -> BaseModel:
     with open(path+".cfg", "r") as file:
         config = yaml.load(file, Loader=yaml.FullLoader)
     if config['type'] == "lindsey":

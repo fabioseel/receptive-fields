@@ -6,6 +6,7 @@ import torch.optim as optim
 import yaml
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
+from torch_ext import ActivationRegularization
 
 from models.model_builder import load_model
 from training import train, validate
@@ -19,6 +20,8 @@ parser.add_argument("lr", type=float)
 parser.add_argument("--optim", type=str, default="rmsprop")
 parser.add_argument("--momentum", type=float, default=0)
 parser.add_argument("--weight_decay", type=float, default=1e-6)
+parser.add_argument("--act_regularize", type=float, default=0)
+parser.add_argument("--act_norm", type=float, default=2)
 parser.add_argument("--save_hist", action="store_true", 
                     help="save the weights after each epoch") 
 parser.add_argument("--num_epochs", type=int, default=20, 
@@ -44,6 +47,8 @@ if args.optim == "rmsprop":
     optimizer = optim.RMSprop(model.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
 elif args.optim == "sgd":
     optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
+
+regularizer = ActivationRegularization(model._activation_func, args.act_norm, args.act_regularize)
 
 print("using", args.optim, "as optimizer")
 
@@ -98,7 +103,7 @@ log_dict['train_loss'] = []
 log_dict['train_acc'] = []
 log_dict['val_acc'] = []
 while not stop:
-    epoch_train_loss, epoch_train_acc = train(model, optimizer, train_loader, device)
+    epoch_train_loss, epoch_train_acc = train(model, optimizer, regularizer, train_loader, device)
 
     # if i_epoch % 5 == 0:
     #     defreeze_no = i_epoch // 5

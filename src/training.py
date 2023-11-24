@@ -3,9 +3,10 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+from torch_ext import ActivationRegularization
 
 
-def train(model: nn.Module, optimizer: optim.Optimizer, train_loader: DataLoader, device: torch.device):
+def train(model: nn.Module, optimizer: optim.Optimizer, act_regularizer:ActivationRegularization, train_loader: DataLoader, device: torch.device):
     # Define the loss function and optimizer
     criterion = nn.CrossEntropyLoss()
 
@@ -24,7 +25,7 @@ def train(model: nn.Module, optimizer: optim.Optimizer, train_loader: DataLoader
         outputs = model(inputs)
         batch_correct =  num_correct(outputs, labels)
         epoch_correct += batch_correct
-        loss = criterion(outputs, labels)
+        loss = criterion(outputs, labels) + act_regularizer.penalty()
 
         # Backpropagation and optimization
         loss.backward()

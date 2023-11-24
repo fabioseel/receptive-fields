@@ -29,7 +29,7 @@ class LindseyNet(BaseModel):
         pool_retina = False,
         pool_vvs = False
     ):
-        super(LindseyNet, self).__init__(img_size)
+        super(LindseyNet, self).__init__(img_size, activation)
         
         self.num_classes=num_classes
         self.in_channels=in_channels
@@ -41,21 +41,9 @@ class LindseyNet(BaseModel):
         self.vvs_layers=vvs_layers
         self.vvs_channels =vvs_channels
         self.first_fc = first_fc
-        self.activation = activation
         self.dropout = dropout
         self.pool_retina = pool_retina
         self.pool_vvs = pool_vvs
-
-        if self.activation == "elu":
-            self._activation_func = nn.ELU(inplace=True)
-        elif self.activation == "selu":
-            self._activation_func = nn.SELU(inplace=True)
-        elif self.activation == "gelu":
-            self._activation_func = nn.GELU()
-        elif self.activation == "tanh":
-            self._activation_func = nn.Tanh()
-        else: # relu or anything els
-            self._activation_func = nn.ReLU(inplace=True)
 
         # Define Retina
         self.retina = nn.Sequential()
@@ -118,11 +106,13 @@ class LindseyNet(BaseModel):
         seq.append(self.softmax) # TODO: Proper handling with the softmax...
         return seq
     
-    def config(self) -> dict:
+    @property
+    def classname(self) -> str:
+        return "lindsey"
+    
+    @property
+    def _config(self) -> dict:
         return {
-            "type" : "lindsey",
-            "config" : {
-            "img_size": self.img_size,
             "num_classes": self.num_classes,
             "in_channels": self.in_channels,
             "kernel_size": self.kernel_size,
@@ -133,8 +123,7 @@ class LindseyNet(BaseModel):
             "vvs_layers":self.vvs_layers,
             "vvs_channels" :self.vvs_channels,
             "first_fc" : self.first_fc,
-            "activation" : self.activation,
             "dropout" : self.dropout,
             "pool_retina" : self.pool_retina,
             "pool_vvs" : self.pool_vvs
-        }}
+        }

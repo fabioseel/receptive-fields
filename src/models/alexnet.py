@@ -19,6 +19,8 @@ class AlexNet(BaseModel):
         self.in_channels = in_channels
         self.dropout = dropout
 
+        self._activation_func = None # TODO: not implemented, so overwrite baseclass assignment!
+
         if pretrain:
             loaded_model = alexnet(AlexNet_Weights.DEFAULT)
             if self.num_classes != 1000:
@@ -42,13 +44,14 @@ class AlexNet(BaseModel):
     def get_sequential(self) -> nn.Module:
         return nn.Sequential(*self.features,self.avgpool, *self.classifier)
 
-    def config(self) -> dict:
+    @property
+    def classname(self) -> str:
+        return "alexnet"
+    
+    @property
+    def _config(self) -> dict:
         return {
-            "type" : "alexnet",
-            "config" : {
-            "img_size": self.img_size,
             "num_classes": self.num_classes,
             "in_channels": self.in_channels,
             "dropout": self.dropout
             }
-        }

@@ -20,7 +20,7 @@ class RetinalModel(BaseModel):
         pool = [True, True, True],
         activation="elu",
         stride= [1,1,1,1]):
-        super(RetinalModel, self).__init__(img_size)
+        super(RetinalModel, self).__init__(img_size, activation)
         
         self.num_classes = num_classes
         self.in_channels = in_channels
@@ -31,19 +31,6 @@ class RetinalModel(BaseModel):
         self.l1_kernel_size = l1_kernel_size
         self.l1_n_channels = n_base_channels if l1_n_channels is None else l1_n_channels
         self.pool = pool
-        self.activation = activation
-
-
-        if self.activation == "elu":
-            self._activation_func = nn.ELU(inplace=True)
-        elif self.activation == "selu":
-            self._activation_func = nn.SELU(inplace=True)
-        elif self.activation == "gelu":
-            self._activation_func = nn.GELU()
-        elif self.activation == "tanh":
-            self._activation_func = nn.Tanh()
-        else: # relu or anything els
-            self._activation_func = nn.ReLU(inplace=True)
 
         self.retina = nn.Sequential()
         self.fc = nn.Sequential()
@@ -83,11 +70,13 @@ class RetinalModel(BaseModel):
         self.fc.append(nn.Linear(in_features=n_fully_connected, out_features=n_fully_connected))
         self.fc.append(nn.Linear(in_features=n_fully_connected, out_features=num_classes))
 
-    def config(self) -> dict:
+    @property
+    def classname(self) -> str:
+        return "retinal"
+    
+    @property
+    def _config(self) -> dict:
         return {
-            "type" : "retinal",
-            "config" : {
-            "img_size": self.img_size,
             "num_classes": self.num_classes,
             "in_channels": self.in_channels,
             "n_base_channels": self.n_base_channels,
@@ -96,9 +85,8 @@ class RetinalModel(BaseModel):
             "l1_conv_type": self.l1_conv_type,
             "l1_kernel_size": self.l1_kernel_size,
             "l1_n_channels": self.l1_n_channels,
-            "pool": self.pool,
-            "activation": self.activation
-        }}
+            "pool": self.pool
+        }
     
     def get_sequential(self) -> nn.Module:
         seq = nn.Sequential()

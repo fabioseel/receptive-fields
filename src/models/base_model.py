@@ -9,9 +9,21 @@ from abc import ABC, abstractmethod
 
 
 class BaseModel(nn.Module, ABC):
-    def __init__(self, img_size) -> None:
+    def __init__(self, img_size, activation="relu") -> None:
         super().__init__()
         self.img_size = img_size
+        self.activation = activation
+
+        if self.activation == "elu":
+            self._activation_func = nn.ELU(inplace=True)
+        elif self.activation == "selu":
+            self._activation_func = nn.SELU(inplace=True)
+        elif self.activation == "gelu":
+            self._activation_func = nn.GELU()
+        elif self.activation == "tanh":
+            self._activation_func = nn.Tanh()
+        else: # relu or anything else
+            self._activation_func = nn.ReLU(inplace=True)
 
     @abstractmethod
     def get_sequential(self) -> nn.Module:
@@ -19,11 +31,25 @@ class BaseModel(nn.Module, ABC):
 
     @property
     @abstractmethod
-    def config(self) -> dict:
+    def _config(self) -> dict:
         pass
 
+    @property
+    def config(self) -> dict:
+        conf = self._config
+        conf["img_size"]= self.img_size
+        conf["activation"]= self.activation
+        return {
+            "type": self.classname,
+            "config": conf
+        }
+
+    @property
+    def classname(self) -> str:
+        return self.__class__
+
     def save(self, filename, save_cfg=True):
-        config = self.config()
+        config = self.config
         if save_cfg:
             with open(filename + ".cfg", "w") as f:
                 yaml.dump(config, f)
