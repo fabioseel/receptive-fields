@@ -1,11 +1,13 @@
 import math
-from os import path
+import os
 from torch.nn.modules.utils import _pair
 
 import torch
 import torch.nn as nn
 import yaml
 from abc import ABC, abstractmethod
+
+from util import find_files_in_folder
 
 
 class BaseModel(nn.Module, ABC):
@@ -60,9 +62,14 @@ class BaseModel(nn.Module, ABC):
         with open(model_path + ".cfg", "r") as file:
             config = yaml.load(file, Loader=yaml.FullLoader)
         model = cls(**config['config'])
+            
         if weights_file is None:
-            weights_file = model_path + ".pth"
-        if path.exists(weights_file):
+            if os.path.isdir(model_path):
+                weights_files = find_files_in_folder(model_path, ".pth")
+                weights_file = weights_files[-1]
+            else:
+                weights_file = model_path + ".pth"
+        if os.path.exists(weights_file):
             try:
                 model.load_state_dict(torch.load(weights_file))
             except:
