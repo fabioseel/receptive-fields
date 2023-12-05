@@ -3,10 +3,10 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-from torch_ext import ActivationRegularization
+from torch_ext import ActivationRegularization, WeightRegularization
 
 
-def train(model: nn.Module, optimizer: optim.Optimizer, act_regularizer:ActivationRegularization, train_loader: DataLoader, device: torch.device):
+def train(model: nn.Module, optimizer: optim.Optimizer, act_regularizer:ActivationRegularization, weight_regularizer:WeightRegularization, train_loader: DataLoader, device: torch.device, max_num_batches: int = None):
     # Define the loss function and optimizer
     criterion = nn.CrossEntropyLoss()
 
@@ -15,7 +15,10 @@ def train(model: nn.Module, optimizer: optim.Optimizer, act_regularizer:Activati
     running_loss = 0.0
 
     epoch_correct = 0
-    pbar = tqdm(enumerate(train_loader), total=(len(train_loader)))
+    num_batches = len(train_loader)
+    if max_num_batches is not None:
+        num_batches = min(num_batches, max_num_batches)
+    pbar = tqdm(enumerate(train_loader), total=max_num_batches)
     for i, (inputs, labels) in pbar:
         inputs = inputs.to(device)
         labels = labels.to(device)
@@ -25,7 +28,7 @@ def train(model: nn.Module, optimizer: optim.Optimizer, act_regularizer:Activati
         outputs = model(inputs)
         batch_correct =  num_correct(outputs, labels)
         epoch_correct += batch_correct
-        loss = criterion(outputs, labels) + act_regularizer.penalty()
+        loss = criterion(outputs, labels) + act_regularizer.penalty() + weight_regularizer.penalty()
 
         # Backpropagation and optimization
         loss.backward()
@@ -34,7 +37,7 @@ def train(model: nn.Module, optimizer: optim.Optimizer, act_regularizer:Activati
         running_loss += loss.item()
 
         pbar.set_postfix({'Loss': loss.item(), 'Acc.:': batch_correct/len(labels)})
-    return running_loss/len(train_loader), epoch_correct/len(train_loader.dataset)
+    return running_loss/num_batches, epoch_correct/min(num_batches*train_loader.batch_size, len(train_loader.dataset))
 
 
 def validate(model: nn.Module, dataloader: DataLoader, device: torch.device):
