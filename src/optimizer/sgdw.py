@@ -267,9 +267,9 @@ def _single_tensor_sgdw(params: List[Tensor],
 
         if weight_decay != 0:
             if weight_norm == 1:
-                d_p = d_p.add(torch.sign(param), alpha=weight_decay)
+                param.subtract_(torch.sign(param), alpha=weight_decay)
             else:
-                d_p = d_p.add(param, alpha=weight_decay)
+                param.mul_(1-weight_decay)
 
         param.add_(d_p, alpha=-lr)
 
@@ -328,23 +328,33 @@ def _multi_tensor_sgdw(params: List[Tensor],
             else:
                 device_grads = bufs
             
-        if weight_decay != 0:
-            if weight_norm == 1:
-                # Re-use the intermediate memory (device_grads) already allocated for maximize
-                if maximize:
-                    torch._foreach_add_(device_grads, torch._foreach_sign(device_params), alpha=weight_decay)
-                else:
-                    device_grads = torch._foreach_add(device_grads, torch._foreach_sign(device_params), alpha=weight_decay)
-            else:
-                # Re-use the intermediate memory (device_grads) already allocated for maximize
-                if maximize:
-                    torch._foreach_add_(device_grads, device_params, alpha=weight_decay)
-                else:
-                    device_grads = torch._foreach_add(device_grads, device_params, alpha=weight_decay)
+        # if weight_decay != 0:
+        #     if weight_norm == 1:
+        #         # Re-use the intermediate memory (device_grads) already allocated for maximize
+        #         if maximize:
+        #             torch._foreach_add_(device_grads, torch._foreach_sign(device_params), alpha=weight_decay)
+        #         else:
+        #             device_grads = torch._foreach_add(device_grads, torch._foreach_sign(device_params), alpha=weight_decay)
+        #     else:
+        #         # Re-use the intermediate memory (device_grads) already allocated for maximize
+        #         if maximize:
+        #             torch._foreach_add_(device_grads, device_params, alpha=weight_decay)
+        #         else:
+        #             device_grads = torch._foreach_add(device_grads, device_params, alpha=weight_decay)
 
         if not device_has_sparse_grad:
+            if weight_decay != 0:
+                if weight_norm == 1:
+                    torch._foreach_add_(device_params, weight_decay, alpha=torch._foreach_sign(device_params))
+                else:
+                    torch._foreach_mul_(device_params, (1-weight_decay))
             torch._foreach_add_(device_params, device_grads, alpha=-lr)
         else:
             # foreach APIs don't support sparse
             for i in range(len(device_params)):
+                if weight_decay != 0:
+                    if weight_norm == 1:
+                        device_params[i].subtract_(device_params[i].sign_(), alpha = weight_decay)
+                    else:
+                        device_params[i].mul_(1-weight_decay)
                 device_params[i].add_(device_grads[i], alpha=-lr)
