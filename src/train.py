@@ -56,7 +56,7 @@ elif args.optim == "sgd":
 elif args.optim == "sgdw":
     optimizer = torch_optimizer.SGDW(model.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
 elif args.optim == "msgdw":
-    optimizer = SGDW(model.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
+    optimizer = SGDW(model.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay, weight_norm=args.weight_norm)
 
 act_regularizer = ActivationRegularization(model._activation_func, args.act_norm, args.act_regularize)
 weight_regularizer = WeightRegularization(model, args.weight_norm, args.weight_regularize)

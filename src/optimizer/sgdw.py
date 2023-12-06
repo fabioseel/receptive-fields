@@ -8,7 +8,7 @@ __all__ = ['SGDW', 'sgdw']
 
 class SGDW(Optimizer):
     def __init__(self, params, lr=required, momentum=0, dampening=0,
-                 weight_decay=0, nesterov=False, *, maximize: bool = False, foreach: Optional[bool] = None,
+                 weight_decay=0, weight_norm=2, nesterov=False, *, maximize: bool = False, foreach: Optional[bool] = None,
                  differentiable: bool = False):
         """
         An extension of the SGD optimizer to SGDW
@@ -21,7 +21,8 @@ class SGDW(Optimizer):
             raise ValueError(f"Invalid weight_decay value: {weight_decay}")
 
         defaults = dict(lr=lr, momentum=momentum, dampening=dampening,
-                        weight_decay=weight_decay, nesterov=nesterov,
+                        weight_decay=weight_decay, weight_norm=weight_norm,
+                        nesterov=nesterov,
                         maximize=maximize, foreach=foreach,
                         differentiable=differentiable)
         if nesterov and (momentum <= 0 or dampening != 0):
@@ -79,6 +80,7 @@ class SGDW(Optimizer):
                 d_p_list,
                 momentum_buffer_list,
                 weight_decay=group['weight_decay'],
+                weight_norm=group['weight_norm'],
                 momentum=group['momentum'],
                 lr=group['lr'],
                 dampening=group['dampening'],
@@ -194,6 +196,7 @@ def sgdw(params: List[Tensor],
         foreach: Optional[bool] = None,
         *,
         weight_decay: float,
+        weight_norm: int,
         momentum: float,
         lr: float,
         dampening: float,
@@ -224,6 +227,7 @@ def sgdw(params: List[Tensor],
          d_p_list,
          momentum_buffer_list,
          weight_decay=weight_decay,
+         weight_norm=weight_norm,
          momentum=momentum,
          lr=lr,
          dampening=dampening,
@@ -236,6 +240,7 @@ def _single_tensor_sgdw(params: List[Tensor],
                        momentum_buffer_list: List[Optional[Tensor]],
                        *,
                        weight_decay: float,
+                       weight_norm: int,
                        momentum: float,
                        lr: float,
                        dampening: float,
@@ -261,7 +266,10 @@ def _single_tensor_sgdw(params: List[Tensor],
                 d_p = buf
 
         if weight_decay != 0:
-            d_p = d_p.add(param, alpha=weight_decay)
+            if weight_norm == 1:
+                d_p = d_p.add(torch.sign(param), alpha=weight_decay)
+            else:
+                d_p = d_p.add(param, alpha=weight_decay)
 
         param.add_(d_p, alpha=-lr)
 
@@ -271,6 +279,7 @@ def _multi_tensor_sgdw(params: List[Tensor],
                       momentum_buffer_list: List[Optional[Tensor]],
                       *,
                       weight_decay: float,
+                       weight_norm: int,
                       momentum: float,
                       lr: float,
                       dampening: float,
@@ -320,11 +329,18 @@ def _multi_tensor_sgdw(params: List[Tensor],
                 device_grads = bufs
             
         if weight_decay != 0:
-            # Re-use the intermediate memory (device_grads) already allocated for maximize
-            if maximize:
-                torch._foreach_add_(device_grads, device_params, alpha=weight_decay)
+            if weight_norm == 1:
+                # Re-use the intermediate memory (device_grads) already allocated for maximize
+                if maximize:
+                    torch._foreach_add_(device_grads, torch._foreach_sign(device_params), alpha=weight_decay)
+                else:
+                    device_grads = torch._foreach_add(device_grads, torch._foreach_sign(device_params), alpha=weight_decay)
             else:
-                device_grads = torch._foreach_add(device_grads, device_params, alpha=weight_decay)
+                # Re-use the intermediate memory (device_grads) already allocated for maximize
+                if maximize:
+                    torch._foreach_add_(device_grads, device_params, alpha=weight_decay)
+                else:
+                    device_grads = torch._foreach_add(device_grads, device_params, alpha=weight_decay)
 
         if not device_has_sparse_grad:
             torch._foreach_add_(device_params, device_grads, alpha=-lr)
