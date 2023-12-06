@@ -18,7 +18,7 @@ def train(model: nn.Module, optimizer: optim.Optimizer, act_regularizer:Activati
     num_batches = len(train_loader)
     if max_num_batches is not None:
         num_batches = min(num_batches, max_num_batches)
-    pbar = tqdm(enumerate(train_loader), total=max_num_batches)
+    pbar = tqdm(enumerate(train_loader), total=num_batches)
     for i, (inputs, labels) in pbar:
         inputs = inputs.to(device)
         labels = labels.to(device)
