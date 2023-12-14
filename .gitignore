@@ -167,3 +167,6 @@ models
 *.pth
 performance/*
 imgs/**/*.html
+imgs/**/*.gif
+*.pdf
+doc/**/*.png
