@@ -345,7 +345,7 @@ def _multi_tensor_sgdw(params: List[Tensor],
         if not device_has_sparse_grad:
             if weight_decay != 0:
                 if weight_norm == 1:
-                    torch._foreach_add_(device_params, weight_decay, alpha=torch._foreach_sign(device_params))
+                    torch._foreach_sub_(device_params, torch._foreach_sign(device_params), alpha=weight_decay)
                 else:
                     torch._foreach_mul_(device_params, (1-weight_decay))
             torch._foreach_add_(device_params, device_grads, alpha=-lr)
