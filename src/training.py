@@ -36,7 +36,7 @@ def train(model: nn.Module, optimizer: optim.Optimizer, act_regularizer:Activati
 
         running_loss += loss.item()
 
-        pbar.set_postfix({'Loss': loss.item(), 'Acc.:': batch_correct/len(labels)})
+        pbar.set_postfix({'Acc.:': batch_correct/len(labels), 'Loss': loss.item()})
     return running_loss/num_batches, epoch_correct/min(num_batches*train_loader.batch_size, len(train_loader.dataset))
 
 
