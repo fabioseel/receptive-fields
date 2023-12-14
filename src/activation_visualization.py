@@ -18,7 +18,7 @@ def sum_collapse_output(out_tensor):
         out_tensor = torch.sum(out_tensor, dim=sum_dims)
     return out_tensor
 
-def multiplot(eff_rfs, color=True, individ_normalize = True, max_plots = 64):
+def multiplot(eff_rfs, color=True, individ_normalize = True, max_plots = 64, plots_per_row=8):
     if not color:
         eff_rfs = eff_rfs.flatten(0,1)
     if len(eff_rfs)==1:
@@ -31,8 +31,8 @@ def multiplot(eff_rfs, color=True, individ_normalize = True, max_plots = 64):
         plt.axis('off')
     else:
         num_plots = min(max_plots,len(eff_rfs))
-        num_rows = max(1,num_plots//8)
-        fig, axes = plt.subplots(num_rows, 8, figsize=(24,num_rows*3))
+        num_rows = max(1,num_plots//plots_per_row)
+        fig, axes = plt.subplots(num_rows, plots_per_row, figsize=(plots_per_row*3,num_rows*3))
         if not individ_normalize:
             eff_rfs = normalizeZeroOne(eff_rfs)
         for i, (eff_rf, ax) in enumerate(zip(eff_rfs, axes.flat)):
