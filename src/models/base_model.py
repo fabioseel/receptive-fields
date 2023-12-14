@@ -24,6 +24,8 @@ class BaseModel(nn.Module, ABC):
             self._activation_func = nn.GELU()
         elif self.activation == "tanh":
             self._activation_func = nn.Tanh()
+        elif self.activation == "leaky":
+            self._activation_func = nn.LeakyReLU(negative_slope=0.2)
         else: # relu or anything else
             self._activation_func = nn.ReLU(inplace=True)
 
