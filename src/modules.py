@@ -166,6 +166,40 @@ class DepthwiseSeparableConv2d(ModConv2d):
         x = self.point_conv(x)
         return x
 
+class space_to_depth(nn.Module):
+    # Changing the dimension of the Tensor, "stolen" from https://github.com/Cateners/yolov8-spd/commit/6e632246ba71e9932512eee834117c343e45b614#diff-70b1aad8c0068184a0e145431a251d90d480aed0226918c90c5a8ccd5a84f0f8
+    def __init__(self, dimension=1):
+        super().__init__()
+        self.d = dimension
+
+    def forward(self, x):
+         return torch.cat([x[..., ::2, ::2], x[..., 1::2, ::2], x[..., ::2, 1::2], x[..., 1::2, 1::2]], 1)
+
+class SPDConv(ModConv2d):
+    def __init__(
+        self,
+        in_channels,
+        out_channels,
+        kernel_size,
+        stride=1,
+        padding=0,
+        dilation=1,
+        bias=True,
+        padding_mode="zeros",
+        scale=2
+    ):
+        """
+        Implementation of the Space-to-Depth reorginization for convolutions
+        """
+        super(SPDConv, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation, bias)
+        assert scale == 2
+        self.space_to_depth
+        
+    def forward(self, x):
+        torch.cat([x[..., ::2, ::2], x[..., 1::2, ::2], x[..., ::2, 1::2], x[..., 1::2, 1::2]], 1)
+
+        return x
+
 
 class SeparableConv2d(ModConv2d):
     def __init__(

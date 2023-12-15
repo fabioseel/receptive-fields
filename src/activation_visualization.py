@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-from modules import SeparableConv2d, ResConv2d, ModConv2d, GaborConv2d, L2Pool
+from modules import SeparableConv2d, ResConv2d, ModConv2d, GaborConv2d, L2Pool, space_to_depth
 from matplotlib import pyplot as plt
 
 
@@ -268,6 +268,8 @@ def get_input_output_shape(model: nn.Sequential):
         #     )
         #     in_size = in_size**2 * in_channels
 
+    if isinstance(model[0], space_to_depth):
+        in_channels = in_channels//4
     in_size = math.floor(math.sqrt(in_size / in_channels))
     input_size = (in_channels, in_size, in_size)
     return num_outputs, input_size

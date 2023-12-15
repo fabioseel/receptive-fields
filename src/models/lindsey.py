@@ -6,6 +6,7 @@ import yaml
 from os import path
 import math
 from models.base_model import BaseModel
+from modules import space_to_depth
 
 def calc_same_pad(i: int, k: int, s: int=1, d: int = 1) -> int:
         return max(math.ceil(((s - 1) * i - s + k) / 2), 0)
@@ -27,7 +28,8 @@ class LindseyNet(BaseModel):
         activation = "relu",
         dropout = 0.0,
         pool_retina = False,
-        pool_vvs = False
+        pool_vvs = False,
+        spd_entry = False
     ):
         super(LindseyNet, self).__init__(img_size, activation)
         
@@ -44,11 +46,16 @@ class LindseyNet(BaseModel):
         self.dropout = dropout
         self.pool_retina = pool_retina
         self.pool_vvs = pool_vvs
+        self.spd_entry = spd_entry
 
         # Define Retina
         self.retina = nn.Sequential()
+        if spd_entry:
+            self.retina.append(space_to_depth())        
         for layer in range(retina_layers):
-            _in_channels = retina_channels if layer != 0 else in_channels
+            _in_channels = retina_channels
+            if layer == 0:
+                _in_channels = in_channels if not spd_entry else in_channels * 4
 
             _out_channels = retina_channels
             _stride = 1    
@@ -56,7 +63,7 @@ class LindseyNet(BaseModel):
                 _out_channels = bottleneck_channels
                 _stride =  retina_out_stride
 
-            _padding = calc_same_pad(self.img_size[0], kernel_size, _stride)
+            _padding = calc_same_pad(self.img_size[0]//(1+self.spd_entry), kernel_size, _stride)
             self.retina.append(nn.Conv2d(_in_channels, _out_channels, kernel_size=kernel_size, stride=_stride, padding=_padding))
             self.retina.append(self._activation_func)
             if self.dropout > 0:
@@ -125,5 +132,6 @@ class LindseyNet(BaseModel):
             "first_fc" : self.first_fc,
             "dropout" : self.dropout,
             "pool_retina" : self.pool_retina,
-            "pool_vvs" : self.pool_vvs
+            "pool_vvs" : self.pool_vvs,
+            "spd_entry" : self.spd_entry
         }
