@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-from modules import SeparableConv2d, ResConv2d, ModConv2d, GaborConv2d, L2Pool, space_to_depth
+from modules import SeparableConv2d, ResConv2d, ModConv2d, GaborConv2d, L2Pool, space_to_depth, SpaceToDepth
 from matplotlib import pyplot as plt
 
 
@@ -17,6 +17,14 @@ def sum_collapse_output(out_tensor):
         sum_dims = [2+i for i in range(len(out_tensor.shape)-2)]
         out_tensor = torch.sum(out_tensor, dim=sum_dims)
     return out_tensor
+
+def set_border_color(ax, color):
+    if isinstance(color, (np.floating, float)):
+        color = (color, color, color)
+    ax.spines['top'].set_color(color)
+    ax.spines['bottom'].set_color(color)
+    ax.spines['left'].set_color(color)
+    ax.spines['right'].set_color(color)
 
 def multiplot(eff_rfs, color=True, individ_normalize = True, max_plots = 64, plots_per_row=8):
     if not color:
@@ -33,17 +41,34 @@ def multiplot(eff_rfs, color=True, individ_normalize = True, max_plots = 64, plo
         num_plots = min(max_plots,len(eff_rfs))
         num_rows = max(1,num_plots//plots_per_row)
         fig, axes = plt.subplots(num_rows, plots_per_row, figsize=(plots_per_row*3,num_rows*3))
+        global_max = np.max(np.abs(eff_rfs[~np.isnan(eff_rfs)]))
         if not individ_normalize:
-            eff_rfs = normalizeZeroOne(eff_rfs)
+            eff_rfs = (eff_rfs+global_max)/(2*global_max)
         for i, (eff_rf, ax) in enumerate(zip(eff_rfs, axes.flat)):
             if individ_normalize:
-                eff_rf = normalizeZeroOne(eff_rf)
+                min_max = np.max(np.abs(eff_rf))
+                eff_rf = (eff_rf+min_max)/(2*min_max)
             if len(eff_rf.shape) == 3:
                 eff_rf=eff_rf.swapaxes(0,2)
             ax.imshow(eff_rf, vmin=0, vmax=1, cmap="gray")
             ax.set_title(str(i))
-        for ax in axes.flat:
-            ax.axis('off')
+            if individ_normalize:
+                ax.set_xticks([])
+                ax.set_yticks([])
+                set_border_color(ax, 1-min_max/global_max)
+
+                linewidth = 5
+                ax.spines['bottom'].set_linewidth(linewidth)
+                ax.spines['top'].set_linewidth(linewidth)
+                ax.spines['right'].set_linewidth(linewidth)
+                ax.spines['left'].set_linewidth(linewidth)
+                plt.setp(ax.get_yticklines(),visible=False)
+                plt.setp(ax.get_xticklines(),visible=False)
+                plt.setp(ax.get_yticklabels(),visible=False)
+                plt.setp(ax.get_xticklabels(),visible=False)
+        if not individ_normalize:
+            for ax in axes.flat:
+                ax.axis('off')
             
 def _dataset_average(
     model: nn.Module, dataloader: DataLoader, desired_output=torch.Tensor, device=None
@@ -257,6 +282,10 @@ def get_input_output_shape(model: nn.Sequential):
                 + layer.kernel_size
             )
             in_size = in_size**2 * in_channels
+        elif isinstance(layer, space_to_depth):
+            in_channels = in_channels//4
+        elif isinstance(layer, SpaceToDepth):
+            in_channels = in_channels//layer.factor**2
             
         # elif isinstance(layer, SeparableConv2d):
         #     in_channels = layer.vertical_conv.in_channels
@@ -268,8 +297,6 @@ def get_input_output_shape(model: nn.Sequential):
         #     )
         #     in_size = in_size**2 * in_channels
 
-    if isinstance(model[0], space_to_depth):
-        in_channels = in_channels//4
     in_size = math.floor(math.sqrt(in_size / in_channels))
     input_size = (in_channels, in_size, in_size)
     return num_outputs, input_size

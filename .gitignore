@@ -168,5 +168,6 @@ models
 performance/*
 imgs/**/*.html
 imgs/**/*.gif
+imgs/**/*.png
 *.pdf
 doc/**/*.png
