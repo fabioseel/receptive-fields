@@ -6,7 +6,7 @@ import torch.optim as optim
 import yaml
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
-from util.torch_ext import ActivationRegularization, WeightRegularization
+from util.regularization import ActivationRegularization, WeightRegularization
 import torch_optimizer
 from optimizer.sgdw import SGDW
 
