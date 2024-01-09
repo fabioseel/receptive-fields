@@ -6,7 +6,7 @@ import yaml
 from os import path
 import math
 from models.base_model import BaseModel
-from modules import space_to_depth
+from modules import space_to_depth, SpaceToDepth
 
 def calc_same_pad(i: int, k: int, s: int=1, d: int = 1) -> int:
         return max(math.ceil(((s - 1) * i - s + k) / 2), 0)
@@ -51,7 +51,7 @@ class LindseyNet(BaseModel):
         # Define Retina
         self.retina = nn.Sequential()
         if spd_entry:
-            self.retina.append(space_to_depth())        
+            self.retina.append(SpaceToDepth(old_spd_reorder=True))        
         for layer in range(retina_layers):
             _in_channels = retina_channels
             if layer == 0:

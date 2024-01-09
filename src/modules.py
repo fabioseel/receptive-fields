@@ -176,7 +176,7 @@ class space_to_depth(nn.Module):
          return torch.cat([x[..., ::2, ::2], x[..., 1::2, ::2], x[..., ::2, 1::2], x[..., 1::2, 1::2]], 1)
     
 class SpaceToDepth(nn.Module):
-    def __init__(self, dimension=1, factor=2, reorder_channels = False):
+    def __init__(self, dimension=1, factor=2, old_spd_reorder = False):
         """
         Rearranges an input tensor such that the output size is scaled by factor and instead the pixels are rearranged into the channel domain.
         Output will have size (bs, in_channels*factor^2, w/factor, h/factor). Pads zeros if needed
@@ -184,7 +184,7 @@ class SpaceToDepth(nn.Module):
         super().__init__()
         self.d = dimension
         self.factor = factor
-        self.reorder_channels = reorder_channels
+        self.old_spd_reorder = old_spd_reorder
 
     def forward(self, x):
         batch_size, channels, height, width = x.size()
@@ -212,9 +212,11 @@ class SpaceToDepth(nn.Module):
         x = x.permute(0, 1, 3, 5, 2, 4).contiguous()
         x = x.view(batch_size, channels * self.factor * self.factor, new_height, new_width)
 
-        if self.reorder_channels:
-            new_order =  [j + i * self.factor*self.factor for j in range(self.factor*self.factor) for i in range(channels)]
-            x = x[...,new_order,:,:]
+        if self.old_spd_reorder:
+            assert self.factor == 2
+            assert self.d == 1
+            old_order = [0,4,8,2,6,10,1,5,9,3,7,11]
+            x = x[...,old_order,:,:]
 
         return x
 

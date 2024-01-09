@@ -41,7 +41,7 @@ def multiplot(eff_rfs, color=True, individ_rescale = True, max_plots = 64, plots
         num_plots = min(max_plots,len(eff_rfs))
         num_rows = max(1,num_plots//plots_per_row)
         fig, axes = plt.subplots(num_rows, plots_per_row, figsize=(plots_per_row*3,num_rows*3))
-        global_max = np.abs(eff_rfs[~np.isnan(eff_rfs)]).numpy().max()
+        global_max = np.abs(eff_rfs[~np.isnan(eff_rfs).to(bool)]).numpy().max()
         if not individ_rescale:
             eff_rfs = (eff_rfs+global_max)/(2*global_max)
         for i, (eff_rf, ax) in enumerate(zip(eff_rfs, axes.flat)):
