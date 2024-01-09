@@ -174,6 +174,65 @@ class space_to_depth(nn.Module):
 
     def forward(self, x):
          return torch.cat([x[..., ::2, ::2], x[..., 1::2, ::2], x[..., ::2, 1::2], x[..., 1::2, 1::2]], 1)
+    
+class SpaceToDepth(nn.Module):
+    def __init__(self, dimension=1, factor=2, padding_mode='zeros'):
+        super().__init__()
+        self.d = dimension
+        self.factor = factor
+        self.padding_mode = padding_mode
+
+    def forward(self, x):
+        batch_size, channels, height, width = x.size()
+        new_height = height // self.factor
+        new_width = width // self.factor
+
+        # Pad the input tensor if dimensions are not divisible by the factor
+        if height % self.factor != 0 or width % self.factor != 0:
+            pad_height = (new_height + 1) * self.factor - height
+            pad_width = (new_width + 1) * self.factor - width
+            x = nn.functional.pad(x, (0, pad_width, 0, pad_height), mode=self.padding_mode)
+
+        # Reshape the tensor
+        return x.view(batch_size, channels * self.factor * self.factor, new_height, new_width)
+    
+class SpaceToDepth(nn.Module):
+    def __init__(self, dimension=1, factor=2):
+        """
+        Rearranges an input tensor such that the output size is scaled by factor and instead the pixels are rearranged into the channel domain.
+        Output will have size (bs, in_channels*factor^2, w/factor, h/factor). Pads zeros if needed
+        """
+        super().__init__()
+        self.d = dimension
+        self.factor = factor
+
+    def forward(self, x):
+        batch_size, channels, height, width = x.size()
+        new_height = height // self.factor
+        new_width = width // self.factor
+
+        # Calculate padding
+        if height % self.factor != 0:
+            new_height += 1
+            pad_height = max(0, new_height * self.factor - height)
+        else:
+            pad_height = 0
+
+        if width % self.factor != 0:
+            new_width += 1
+            pad_width = max(0, new_width * self.factor - width)
+        else:
+            pad_width = 0
+
+        # Pad the input tensor
+        x = nn.functional.pad(x, (0, pad_width, 0, pad_height))
+
+        # Reshape the tensor
+        x = x.view(batch_size, channels, new_height, self.factor, new_width, self.factor)
+        x = x.permute(0, 1, 3, 5, 2, 4).contiguous()
+        x = x.view(batch_size, channels * self.factor * self.factor, new_height, new_width)
+
+        return x
 
 class SPDConv(ModConv2d):
     def __init__(
