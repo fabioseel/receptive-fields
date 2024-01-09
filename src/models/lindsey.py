@@ -6,7 +6,7 @@ import yaml
 from os import path
 import math
 from models.base_model import BaseModel
-from modules import space_to_depth, SpaceToDepth
+from util.modules import space_to_depth, SpaceToDepth
 
 def calc_same_pad(i: int, k: int, s: int=1, d: int = 1) -> int:
         return max(math.ceil(((s - 1) * i - s + k) / 2), 0)

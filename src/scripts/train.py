@@ -6,13 +6,15 @@ import torch.optim as optim
 import yaml
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
-from torch_ext import ActivationRegularization, WeightRegularization
+from util.torch_ext import ActivationRegularization, WeightRegularization
 import torch_optimizer
 from optimizer.sgdw import SGDW
 
 from models.model_builder import load_model
-from training import train, validate
+from util.training import train, validate
 import torch
+
+# Run from src directory!
 
 parser = argparse.ArgumentParser()
 parser.add_argument("config", type=str)

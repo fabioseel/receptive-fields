@@ -2,7 +2,7 @@ import torch.nn as nn
 from models.base_model import BaseModel
 from torch import nn
 import torch
-from modules import GaborConv2d, SpaceToDepth
+from util.modules import GaborConv2d, SpaceToDepth
 
 class RetinalModel(BaseModel):
     def __init__(self, 

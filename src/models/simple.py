@@ -3,7 +3,7 @@ import math
 import torch.nn as nn
 
 from models.base_model import BaseModel
-from modules import get_convolution
+from util.modules import get_convolution
 from torch.nn.modules.utils import _pair
 
 class SimpleCNN(BaseModel):

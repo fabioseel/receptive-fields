@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-from torch_ext import ActivationRegularization, WeightRegularization
+from util.torch_ext import ActivationRegularization, WeightRegularization
 
 
 def train(model: nn.Module, optimizer: optim.Optimizer, act_regularizer:ActivationRegularization, weight_regularizer:WeightRegularization, train_loader: DataLoader, device: torch.device, max_num_batches: int = None):

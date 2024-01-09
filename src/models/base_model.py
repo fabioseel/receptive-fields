@@ -7,7 +7,7 @@ import torch.nn as nn
 import yaml
 from abc import ABC, abstractmethod
 
-from util import find_files_in_folder
+from util.util import find_files_in_folder
 
 
 class BaseModel(nn.Module, ABC):
