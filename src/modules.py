@@ -176,28 +176,7 @@ class space_to_depth(nn.Module):
          return torch.cat([x[..., ::2, ::2], x[..., 1::2, ::2], x[..., ::2, 1::2], x[..., 1::2, 1::2]], 1)
     
 class SpaceToDepth(nn.Module):
-    def __init__(self, dimension=1, factor=2, padding_mode='zeros'):
-        super().__init__()
-        self.d = dimension
-        self.factor = factor
-        self.padding_mode = padding_mode
-
-    def forward(self, x):
-        batch_size, channels, height, width = x.size()
-        new_height = height // self.factor
-        new_width = width // self.factor
-
-        # Pad the input tensor if dimensions are not divisible by the factor
-        if height % self.factor != 0 or width % self.factor != 0:
-            pad_height = (new_height + 1) * self.factor - height
-            pad_width = (new_width + 1) * self.factor - width
-            x = nn.functional.pad(x, (0, pad_width, 0, pad_height), mode=self.padding_mode)
-
-        # Reshape the tensor
-        return x.view(batch_size, channels * self.factor * self.factor, new_height, new_width)
-    
-class SpaceToDepth(nn.Module):
-    def __init__(self, dimension=1, factor=2):
+    def __init__(self, dimension=1, factor=2, reorder_channels = False):
         """
         Rearranges an input tensor such that the output size is scaled by factor and instead the pixels are rearranged into the channel domain.
         Output will have size (bs, in_channels*factor^2, w/factor, h/factor). Pads zeros if needed
@@ -205,6 +184,7 @@ class SpaceToDepth(nn.Module):
         super().__init__()
         self.d = dimension
         self.factor = factor
+        self.reorder_channels = reorder_channels
 
     def forward(self, x):
         batch_size, channels, height, width = x.size()
@@ -232,33 +212,11 @@ class SpaceToDepth(nn.Module):
         x = x.permute(0, 1, 3, 5, 2, 4).contiguous()
         x = x.view(batch_size, channels * self.factor * self.factor, new_height, new_width)
 
-        return x
-
-class SPDConv(ModConv2d):
-    def __init__(
-        self,
-        in_channels,
-        out_channels,
-        kernel_size,
-        stride=1,
-        padding=0,
-        dilation=1,
-        bias=True,
-        padding_mode="zeros",
-        scale=2
-    ):
-        """
-        Implementation of the Space-to-Depth reorginization for convolutions
-        """
-        super(SPDConv, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation, bias)
-        assert scale == 2
-        self.space_to_depth
-        
-    def forward(self, x):
-        torch.cat([x[..., ::2, ::2], x[..., 1::2, ::2], x[..., ::2, 1::2], x[..., 1::2, 1::2]], 1)
+        if self.reorder_channels:
+            new_order =  [j + i * self.factor*self.factor for j in range(self.factor*self.factor) for i in range(channels)]
+            x = x[...,new_order,:,:]
 
         return x
-
 
 class SeparableConv2d(ModConv2d):
     def __init__(

@@ -17,9 +17,6 @@ def find_files_in_folder(folder, partial_name):
     matching_files.sort()
     return matching_files
 
-def normalize(img):
-    return (img-img.mean())/(img.max()-img.min())
-
 def _resize(inp, shape, method='pad_crop', fill_value=None):
     if fill_value is None:
         fill_value=0

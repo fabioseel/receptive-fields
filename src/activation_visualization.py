@@ -9,7 +9,7 @@ from modules import SeparableConv2d, ResConv2d, ModConv2d, GaborConv2d, L2Pool, 
 from matplotlib import pyplot as plt
 
 
-def normalizeZeroOne(input):
+def rescaleZeroOne(input):
     return (input - input.min()) / (input.max() - input.min())
 
 def sum_collapse_output(out_tensor):
@@ -26,11 +26,11 @@ def set_border_color(ax, color):
     ax.spines['left'].set_color(color)
     ax.spines['right'].set_color(color)
 
-def multiplot(eff_rfs, color=True, individ_normalize = True, max_plots = 64, plots_per_row=8):
+def multiplot(eff_rfs, color=True, individ_rescale = True, max_plots = 64, plots_per_row=8):
     if not color:
         eff_rfs = eff_rfs.flatten(0,1)
     if len(eff_rfs)==1:
-        eff_rf = normalizeZeroOne(eff_rfs[0])
+        eff_rf = rescaleZeroOne(eff_rfs[0])
         if len(eff_rf.shape) == 3:
             eff_rf=eff_rf.swapaxes(0,2)
         else:
@@ -41,18 +41,18 @@ def multiplot(eff_rfs, color=True, individ_normalize = True, max_plots = 64, plo
         num_plots = min(max_plots,len(eff_rfs))
         num_rows = max(1,num_plots//plots_per_row)
         fig, axes = plt.subplots(num_rows, plots_per_row, figsize=(plots_per_row*3,num_rows*3))
-        global_max = np.max(np.abs(eff_rfs[~np.isnan(eff_rfs)]))
-        if not individ_normalize:
+        global_max = np.abs(eff_rfs[~np.isnan(eff_rfs)]).numpy().max()
+        if not individ_rescale:
             eff_rfs = (eff_rfs+global_max)/(2*global_max)
         for i, (eff_rf, ax) in enumerate(zip(eff_rfs, axes.flat)):
-            if individ_normalize:
-                min_max = np.max(np.abs(eff_rf))
+            if individ_rescale:
+                min_max = np.abs(eff_rf).numpy().max()
                 eff_rf = (eff_rf+min_max)/(2*min_max)
             if len(eff_rf.shape) == 3:
                 eff_rf=eff_rf.swapaxes(0,2)
             ax.imshow(eff_rf, vmin=0, vmax=1, cmap="gray")
             ax.set_title(str(i))
-            if individ_normalize:
+            if individ_rescale:
                 ax.set_xticks([])
                 ax.set_yticks([])
                 set_border_color(ax, 1-min_max/global_max)
@@ -66,7 +66,7 @@ def multiplot(eff_rfs, color=True, individ_normalize = True, max_plots = 64, plo
                 plt.setp(ax.get_xticklines(),visible=False)
                 plt.setp(ax.get_yticklabels(),visible=False)
                 plt.setp(ax.get_xticklabels(),visible=False)
-        if not individ_normalize:
+        if not individ_rescale:
             for ax in axes.flat:
                 ax.axis('off')
             
@@ -83,11 +83,11 @@ def _dataset_average(
             outputs = sum_collapse_output(outputs)
 
             weight = nn.functional.cross_entropy(outputs, desired_output[None].expand(outputs.shape[0], -1), reduction='none')
-            weight = normalizeZeroOne(1.0/weight)
+            weight = rescaleZeroOne(1.0/weight)
             expanded_weight = weight[..., *[None for _ in range(len(inputs.shape)-1)]]
             weighted_sum += torch.sum(expanded_weight * inputs, dim=0)
 
-    return normalizeZeroOne(weighted_sum.cpu())
+    return rescaleZeroOne(weighted_sum.cpu())
 
 
 def dataset_average(
@@ -349,8 +349,8 @@ def single_backprop_maximization(
                 + smooth_loss(input_tensor[..., :, 1:], input_tensor[..., :, :-1])
             )
         loss.backward()
-        input_tensor = normalizeZeroOne(input_tensor.detach() - input_tensor.grad)
+        input_tensor = rescaleZeroOne(input_tensor.detach() - input_tensor.grad)
     if reduction:
-        return normalizeZeroOne(input_tensor.mean(0)).cpu().detach()
+        return rescaleZeroOne(input_tensor.mean(0)).cpu().detach()
     else:
         return input_tensor.cpu().detach()
