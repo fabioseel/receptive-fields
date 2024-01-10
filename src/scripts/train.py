@@ -42,9 +42,9 @@ parser.add_argument("--enable_img_transforms", action="store_true",
                     help="enable the image transforms that can be defined with add background and min/max resize")
 parser.add_argument("--add_background", type=str, default="rl", 
                     help="add the rl or black background and place the image at a random position")
-parser.add_argument("--min_resize", float, default=1,
+parser.add_argument("--min_resize", type=float, default=1,
                     help="the minimum factor the image is resized by before being composed onto the background") 
-parser.add_argument("--max_resize", float, default=1,
+parser.add_argument("--max_resize", type=float, default=1,
                     help="the maximum factor the image is resized to before being composed onto the background") 
 
 args = parser.parse_args()
