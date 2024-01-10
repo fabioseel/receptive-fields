@@ -7,7 +7,7 @@ class ComposeImage(torch.nn.Module):
     """Put the image at a random position in the RL Background
     """
 
-    def __init__(self, background_image, fix_position=False, seed = None):
+    def __init__(self, background_image, fix_position=False, seed = None): # TODO: implement fix position to center
         super().__init__()
         if isinstance(background_image, PIL.Image.Image):
             self.bg_width = background_image.width

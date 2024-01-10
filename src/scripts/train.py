@@ -1,17 +1,19 @@
 import argparse
 import os
+import PIL
 
 import matplotlib.pyplot as plt
 import torch.optim as optim
 import yaml
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
-from util.regularization import ActivationRegularization, WeightRegularization
+from receptive_fields.util.regularization import ActivationRegularization, WeightRegularization
+from receptive_fields.util.dataset_transforms import RandomResize, ComposeImage
 import torch_optimizer
-from optimizer.sgdw import SGDW
+from receptive_fields.optimizer.sgdw import SGDW
 
-from models.model_builder import load_model
-from util.training import train, validate
+from receptive_fields.models.model_builder import load_model
+from receptive_fields.util.training import train, validate
 import torch
 
 # Run from src directory!
@@ -35,8 +37,15 @@ parser.add_argument("--num_epochs", type=int, default=20,
 parser.add_argument("--early_stop", type=int, default=0, 
                     help="stop after n epochs of not improving") 
 parser.add_argument("--max_num_batches", type=int, default=None, 
-                    help="use only n batches during training") 
-
+                    help="use only n batches during training")
+parser.add_argument("--enable_img_transforms", action="store_true", 
+                    help="enable the image transforms that can be defined with add background and min/max resize")
+parser.add_argument("--add_background", type=str, default="rl", 
+                    help="add the rl or black background and place the image at a random position")
+parser.add_argument("--min_resize", float, default=1,
+                    help="the minimum factor the image is resized by before being composed onto the background") 
+parser.add_argument("--max_resize", float, default=1,
+                    help="the maximum factor the image is resized to before being composed onto the background") 
 
 args = parser.parse_args()
 
@@ -65,13 +74,21 @@ weight_regularizer = WeightRegularization(model, args.weight_norm, args.weight_r
 
 print("using", args.optim, "as optimizer")
 
+transf = []
+if args.enable_img_transforms:
+    transf.append(RandomResize((args.min_resize, args.max_resize)))
+    if args.add_background == "rl":
+        bg = PIL.Image.open("../resources/empty-viewport.png")
+    else:
+        bg = torch.zeros((3, 120,160))
+    transf.append(ComposeImage(bg))
 
-transf = [transforms.ToTensor()]
+transf.append(transforms.ToTensor())
 if model.in_channels == 1:
     transf.append(transforms.Grayscale())
 
 if args.dataset == "stl10":
-    if model.img_size != 96:
+    if model.img_size != 96 and not args.enable_img_transforms:
         transf.append(transforms.Resize(model.img_size, antialias=True))
     train_data = datasets.STL10(
         root="../data", split="train", download=True, transform=transforms.Compose(transf)
@@ -80,7 +97,7 @@ if args.dataset == "stl10":
         root="../data", split="test", download=True, transform=transforms.Compose(transf)
     )
 else:
-    if model.img_size != 32:
+    if model.img_size != 32 and not args.enable_img_transforms:
         transf.append(transforms.Resize(model.img_size, antialias=True))
     train_data = datasets.CIFAR10(
         root="../data", train=True, download=True, transform=transforms.Compose(transf)
