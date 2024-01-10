@@ -35,6 +35,10 @@ class ComposeImage(torch.nn.Module):
         else:
             width = img.shape[-1]
             height = img.shape[-2]
+
+        assert width <= self.bg_width
+        assert height <= self.bg_height
+
         w_start = self.rng.randint(0, self.bg_width-width)
         h_start = self.rng.randint(0, self.bg_height-height)
 
@@ -54,4 +58,38 @@ class ComposeImage(torch.nn.Module):
 
     def __repr__(self) -> str:
         detail = f"(fix_position={self.fix_position}, background={self.background_image.size()}, seed = {self.seed})"
+        return f"{self.__class__.__name__}{detail}"
+    
+
+class RandomResize(torch.nn.Module):
+    """Resizes the image to a random size in the given bounds. If bounds are defined for only one of width and height, the other will not be considered.
+    """
+
+    def __init__(self, factor_range, seed=None):
+        super().__init__()
+        self.factor_range = factor_range
+        self.seed = seed
+        self.rng = random.Random(self.seed)
+
+    def forward(self, img):
+        """
+        Args:
+            img (PIL Image or Tensor): Image to be put on background.
+
+        Returns:
+            PIL Image or Tensor: Image on background.
+        """
+        if isinstance(img, PIL.Image.Image):
+            width = img.width
+            height = img.height
+        else:
+            width = img.shape[-1]
+            height = img.shape[-2]
+        
+        scale = self.rng.random() * (self.factor_range[1] - self.factor_range[0]) + self.factor_range[0]
+
+        return F.resize(img, (int(round(height*scale)), int(round(width*scale))))
+
+    def __repr__(self) -> str:
+        detail = f"(factor_range={self.factor_range}, seed = {self.seed})"
         return f"{self.__class__.__name__}{detail}"
