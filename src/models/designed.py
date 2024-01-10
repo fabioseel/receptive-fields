@@ -1,8 +1,8 @@
 import torch.nn as nn
-from models.base_model import BaseModel
+from receptive_fields.models.base_model import BaseModel
 from torch import nn
 import torch
-from util.modules import L2Pool, SeparableConv2d
+from receptive_fields.util.modules import L2Pool, SeparableConv2d
 
 class DesignedModel(BaseModel):
     def __init__(self, 

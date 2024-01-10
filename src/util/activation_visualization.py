@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-from util.modules import SeparableConv2d, ResConv2d, ModConv2d, GaborConv2d, L2Pool, space_to_depth, SpaceToDepth
+from receptive_fields.util.modules import SeparableConv2d, ResConv2d, ModConv2d, GaborConv2d, L2Pool, space_to_depth, SpaceToDepth
 from matplotlib import pyplot as plt
 
 

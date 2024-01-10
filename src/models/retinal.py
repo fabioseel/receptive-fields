@@ -1,8 +1,8 @@
 import torch.nn as nn
-from models.base_model import BaseModel
+from receptive_fields.models.base_model import BaseModel
 from torch import nn
 import torch
-from util.modules import GaborConv2d, SpaceToDepth
+from receptive_fields.util.modules import GaborConv2d, SpaceToDepth
 
 class RetinalModel(BaseModel):
     def __init__(self, 

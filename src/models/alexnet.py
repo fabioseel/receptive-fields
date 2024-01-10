@@ -1,5 +1,5 @@
 import torch.nn as nn
-from models.base_model import BaseModel
+from receptive_fields.models.base_model import BaseModel
 from torchvision.models import AlexNet as _AlexNet
 from torchvision.models import alexnet, AlexNet_Weights
 import torch

@@ -1,9 +1,9 @@
-from models.designed import DesignedModel
-from models.lindsey import LindseyNet
-from models.simple import SimpleCNN
-from models.retinal import RetinalModel
-from models.alexnet import AlexNet
-from models.base_model import BaseModel
+from receptive_fields.models.designed import DesignedModel
+from receptive_fields.models.lindsey import LindseyNet
+from receptive_fields.models.simple import SimpleCNN
+from receptive_fields.models.retinal import RetinalModel
+from receptive_fields.models.alexnet import AlexNet
+from receptive_fields.models.base_model import BaseModel
 from torch import nn
 import yaml
 
