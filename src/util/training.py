@@ -5,7 +5,6 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 from receptive_fields.util.regularization import ActivationRegularization, WeightRegularization
 
-
 def train(model: nn.Module, optimizer: optim.Optimizer, act_regularizer:ActivationRegularization, weight_regularizer:WeightRegularization, train_loader: DataLoader, device: torch.device, max_num_batches: int = None):
     # Define the loss function and optimizer
     criterion = nn.CrossEntropyLoss()
