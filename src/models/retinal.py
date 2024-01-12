@@ -24,7 +24,8 @@ class RetinalModel(BaseModel):
         activation="elu",
         fc_act=False, # forgot to put act for fc layers in the beginning, should be set to True always!
         stride= [1,1,1,1],
-        spd=[1, 1, 1]):
+        spd=[1, 1, 1],
+        fc_in = (2,3)):
         super(RetinalModel, self).__init__(img_size, activation)
         
         self.num_classes = num_classes
@@ -41,6 +42,7 @@ class RetinalModel(BaseModel):
         self.pool = pool
         self.spd = spd
         self.fc_act = fc_act
+        self.fc_in = fc_in
 
         self.retina = nn.Sequential()
         self.fc = nn.Sequential()
@@ -76,8 +78,8 @@ class RetinalModel(BaseModel):
         self.retina.append(nn.Conv2d(n_lgn_channels*self.spd[2]**2, 4*n_base_channels, kernel_size=self.v1_kernel_size, padding=padding))
         self.retina.append(self._activation_func)
 
-        if(self.pool[0]):
-            self.retina.append(nn.MaxPool2d(kernel_size=4, padding=padding, ceil_mode=ceil_mode))
+        if(self.pool[2]):
+            self.retina.append(nn.AdaptiveMaxPool2d(output_size=fc_in))
         self.retina.append(nn.Flatten())
 
         # FC Layers
@@ -111,7 +113,8 @@ class RetinalModel(BaseModel):
             "v1_kernel_size": self.v1_kernel_size,
             "pool": self.pool,
             "spd": self.spd,
-            "fc_act": self.fc_act
+            "fc_act": self.fc_act,
+            "fc_in": self.fc_in
         }
     
     def get_sequential(self) -> nn.Module:
