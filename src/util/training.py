@@ -39,19 +39,24 @@ def train(model: nn.Module, optimizer: optim.Optimizer, act_regularizer:Activati
     return running_loss/num_batches, epoch_correct/min(num_batches*train_loader.batch_size, len(train_loader.dataset))
 
 
-def validate(model: nn.Module, dataloader: DataLoader, device: torch.device):
+def validate(model: nn.Module, dataloader: DataLoader, device: torch.device, abort_batch = None):
     # Evaluate the model on the test data
     model.eval()  # Set the model to evaluation mode
     correct = 0
     total = 0
 
     with torch.no_grad():
-        for inputs, labels in tqdm(dataloader, total=(len(dataloader))):
+        num_iter = abort_batch if abort_batch is not None else len(dataloader)
+        for i, (inputs, labels) in tqdm(enumerate(dataloader), total=num_iter):
             inputs = inputs.to(device)
             labels = labels.to(device)
             outputs = model(inputs)
             total += labels.size(0)
             correct += num_correct(outputs, labels)
+            if abort_batch is not None:
+                if i > abort_batch:
+                    break
+
     accuracy = 100 * correct / total
     return accuracy
 

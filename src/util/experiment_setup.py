@@ -88,7 +88,7 @@ def open_experiment(path, train_data=True, test_data=False, batch_size=10):
     else:
         return model
     
-def setup_dataset_transforms(enable_img_transforms: bool, min_resize: float, max_resize: float, add_background: str, grayscale: bool, img_size:int = None):
+def setup_dataset_transforms(enable_img_transforms: bool, min_resize: float, max_resize: float, add_background: str="rl", grayscale: bool=False, img_size:int = None):
     transf = []
     if enable_img_transforms:
         transf.append(RandomResize((min_resize, max_resize)))
