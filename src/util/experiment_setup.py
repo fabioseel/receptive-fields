@@ -67,14 +67,13 @@ def get_parser_defaults():
     return vars(parser.parse_args(["","",0,0]))
 
 def load_log(path):
-    with open(path, "r") as f: 
-        log = yaml.load(f, Loader=yaml.FullLoader)
     parser_def = get_parser_defaults()
-    for key in log.keys():
-        parser_def[key] = log[key]
+    if osp.exists(path):
+        with open(path, "r") as f: 
+            log = yaml.load(f, Loader=yaml.FullLoader)
+        for key in log.keys():
+            parser_def[key] = log[key]
     return parser_def
-
-
 
 def open_experiment(path, train_data=True, test_data=False, batch_size=10):
     model = load_model(path)
@@ -106,7 +105,6 @@ def setup_dataset_transforms(enable_img_transforms: bool, min_resize: float, max
     if not enable_img_transforms and img_size is not None:
             transf.append(transforms.Resize(img_size, antialias=True))
     return transforms.Compose(transf)
-
 
 def load_dataset(dataset:str = "cifar10", train_data:bool = True, test_data:bool = False, enable_img_transforms: bool = False, min_resize: float = 1, max_resize: float = 1, add_background: str = "rl", grayscale: bool = False, img_size:int = None, data_root = "../data"):
     assert train_data or test_data
