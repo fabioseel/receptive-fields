@@ -25,7 +25,7 @@ class RetinalModel(BaseModel):
         fc_act=False, # forgot to put act for fc layers in the beginning, should be set to True always!
         stride= [1,1,1,1],
         spd=[1, 1, 1],
-        fc_in = (2,3)):
+        fc_in = None):
         super(RetinalModel, self).__init__(img_size, activation)
         
         self.num_classes = num_classes
@@ -79,7 +79,10 @@ class RetinalModel(BaseModel):
         self.retina.append(self._activation_func)
 
         if(self.pool[2]):
-            self.retina.append(nn.AdaptiveMaxPool2d(output_size=fc_in))
+            if self.fc_in is not None:
+                self.retina.append(nn.AdaptiveMaxPool2d(output_size=self.fc_in))
+            else:
+                self.retina.append(nn.MaxPool2d(kernel_size=self.v1_kernel_size, ceil_mode=ceil_mode))
         self.retina.append(nn.Flatten())
 
         # FC Layers
