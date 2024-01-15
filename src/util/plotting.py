@@ -1,12 +1,16 @@
 import numpy as np
 
-def relabel_axis_with_images(fig, ax, x_images, y_images):
+def relabel_axis_with_images(fig, ax, x_images, y_images, n_x=None, n_y=None):
     xl, yl, xh, yh=np.array(ax.get_position()).ravel()
     w=xh-xl
     h=yh-yl
 
-    h_step = h/len(y_images)
-    w_step = w/len(x_images)
+    if n_x is None:
+        n_x = len(x_images)
+    if n_y is None:
+        n_y = len(y_images)
+    h_step = h/n_x
+    w_step = w/n_x
     size = h_step * 0.95
 
     yp = yh + 0.5 * h_step
