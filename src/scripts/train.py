@@ -12,7 +12,7 @@ from receptive_fields.util.dataset_transforms import RandomResize, ComposeImage
 import torch_optimizer
 from receptive_fields.optimizer.sgdw import SGDW
 
-from receptive_fields.util.experiment_setup import load_model, create_parser, load_dataset
+from receptive_fields.util.experiment_setup import load_model, create_parser, load_dataset, load_log
 from receptive_fields.util.training import train, validate
 import torch
 
@@ -67,12 +67,16 @@ log_dir = os.path.join("../models", _path_dir,"logs")
 if not os.path.exists(log_dir):
     os.mkdir(log_dir)
 log_file = os.path.join(log_dir, _file_name+".yaml")
+if os.path.exists(log_file):
+    log_dict = load_log(log_file)
+    prev_epochs = len(log_dict['train_loss'])
+    log_dict['new_params_epoch_'+str(prev_epochs)]= args.__dict__
+else:
+    log_dict =  args.__dict__
+    log_dict['train_loss'] = []
+    log_dict['train_acc'] = []
+    log_dict['val_acc'] = []
 
-log_dict =  args.__dict__
-
-log_dict['train_loss'] = []
-log_dict['train_acc'] = []
-log_dict['val_acc'] = []
 while not stop:
     epoch_train_loss, epoch_train_acc = train(model, optimizer, act_regularizer, weight_regularizer, train_loader, device, args.max_num_batches)
 
