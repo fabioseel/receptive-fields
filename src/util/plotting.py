@@ -9,7 +9,7 @@ def relabel_axis_with_images(fig, ax, x_images, y_images, n_x=None, n_y=None):
         n_x = len(x_images)
     if n_y is None:
         n_y = len(y_images)
-    h_step = h/n_x
+    h_step = h/n_y
     w_step = w/n_x
     size = h_step * 0.95
 
