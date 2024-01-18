@@ -19,6 +19,7 @@ class RetinalModel(BaseModel):
         l1_n_channels=None,
         lgn_kernel_size = 1,
         rgc_kernel_size = 3,
+        n_rgc_channels=None,
         v1_kernel_size = 4,
         pool = [True, True, True],
         activation="elu",
@@ -37,6 +38,7 @@ class RetinalModel(BaseModel):
         self.l1_kernel_size = l1_kernel_size
         self.l1_n_channels = n_base_channels if l1_n_channels is None else l1_n_channels
         self.lgn_kernel_size = lgn_kernel_size
+        self.n_rgc_channels = 2*n_base_channels if n_rgc_channels is None else n_rgc_channels
         self.rgc_kernel_size = rgc_kernel_size
         self.v1_kernel_size = v1_kernel_size
         self.pool = pool
@@ -63,13 +65,13 @@ class RetinalModel(BaseModel):
         # RGC
         if self.spd[1]>1:
             self.retina.append(SpaceToDepth(factor=self.spd[1]))
-        self.retina.append(nn.Conv2d(self.l1_n_channels*self.spd[1]**2, 2*n_base_channels,kernel_size=self.rgc_kernel_size, padding=padding))
+        self.retina.append(nn.Conv2d(self.l1_n_channels*self.spd[1]**2, self.n_rgc_channels,kernel_size=self.rgc_kernel_size, padding=padding))
         self.retina.append(self._activation_func)
         if(self.pool[1]):
             self.retina.append(nn.AvgPool2d(kernel_size=3, padding=padding, ceil_mode=ceil_mode))
 
         # LGN
-        self.retina.append(nn.Conv2d(2*n_base_channels, n_lgn_channels, kernel_size=self.lgn_kernel_size))
+        self.retina.append(nn.Conv2d(self.n_rgc_channels, n_lgn_channels, kernel_size=self.lgn_kernel_size))
         self.retina.append(self._activation_func)
 
         # V1
@@ -113,6 +115,7 @@ class RetinalModel(BaseModel):
             "l1_n_channels": self.l1_n_channels,
             "lgn_kernel_size": self.lgn_kernel_size,
             "rgc_kernel_size": self.rgc_kernel_size,
+            "n_rgc_channels": self.n_rgc_channels,
             "v1_kernel_size": self.v1_kernel_size,
             "pool": self.pool,
             "spd": self.spd,
