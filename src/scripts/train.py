@@ -89,7 +89,7 @@ while not stop:
 
 
     if args.save_hist:
-        model.save(os.path.join(filepath,"e{:02d}".format(i_epoch)))
+        model.save(os.path.join(filepath,"e{:04d}".format(i_epoch)))
 
     if epoch_val_acc > prev_best_acc:
         prev_best_acc = epoch_val_acc
