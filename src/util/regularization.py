@@ -12,7 +12,7 @@ def l1reg(x:torch.Tensor):
 def l2reg(x:torch.Tensor):
     return torch.pow(x, 2).sum()
 
-class ActivationRegularization():
+class ActivationRegularization(): # TODO: make less memory demanding
     def __init__(self, module = torch.nn.Module | list, p=2.0, act_lambda=0.01):
         self._lambda = act_lambda
         if act_lambda > 0:

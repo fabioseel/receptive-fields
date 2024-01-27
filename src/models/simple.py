@@ -1,10 +1,12 @@
 import math
 
 import torch.nn as nn
+import torch
 
 from receptive_fields.models.base_model import BaseModel
 from receptive_fields.util.modules import get_convolution
 from torch.nn.modules.utils import _pair
+from receptive_fields.util.modules import SpaceToDepth
 
 class SimpleCNN(BaseModel):
     def __init__(
@@ -12,6 +14,8 @@ class SimpleCNN(BaseModel):
         img_size,
         num_classes,
         num_layers=3,
+        num_fc_layers = 1,
+        fc_dim = 128,
         in_channels=3,
         num_channels=16,
         kernel_size=3,
@@ -21,26 +25,37 @@ class SimpleCNN(BaseModel):
         separable=False,
         num_skip_layers=None,
         gabor=False,
-        activation="relu"
+        activation="relu",
+        pooling_ks = 1,
+        spd = 1,
+        pad_spd=True
     ):
         super(SimpleCNN, self).__init__(img_size, activation)
         self.num_classes = num_classes
         self.num_layers = num_layers
+        self.num_fc_layers = num_fc_layers
+        self.fc_dim = fc_dim
         self.in_channels = in_channels
         self.num_channels = num_channels
-        self.kernel_size = _pair(kernel_size)
-        self.stride = _pair(stride)
+        self.kernel_size = kernel_size
+        self.stride = stride
         self.padding = _pair(padding)
         self.dilation = _pair(dilation)
         self.separable = separable
         self.num_skip_layers=num_skip_layers
         self.gabor=gabor
+        self.pooling_ks = pooling_ks
+        self.spd = spd
+        self.pad_spd = pad_spd
 
         assert not(gabor and separable)
 
+        self.space_to_depth = SpaceToDepth(factor=self.spd, pad=self.pad_spd)
+        self.pool = nn.AvgPool2d(kernel_size=self.pooling_ks)
+
         # Define the first convolutional layer
         self.conv1 = get_convolution(
-            in_channels, num_channels, kernel_size, stride, padding, dilation, separable, num_skip_layers, gabor
+            in_channels*self.spd**2, num_channels, kernel_size, stride, padding, dilation, separable, num_skip_layers, gabor
         )
         self.softmax = nn.Softmax(dim=-1)
 
@@ -49,28 +64,44 @@ class SimpleCNN(BaseModel):
         for _ in range(num_layers - 1):
             self.extra_conv_layers.append(
                 get_convolution(
-                    num_channels, num_channels, kernel_size, stride, padding, dilation, separable, num_skip_layers, gabor
+                    num_channels*self.spd**2, num_channels, kernel_size, stride, padding, dilation, separable, num_skip_layers, gabor
                 )
             )
 
         # Fully connected layer
-        res_size = [*self.img_size]
-        for l in range(self.num_layers):
-            res_size[0] = math.floor(
-                (res_size[0]+2*self.padding[0] - self.dilation[0] * (self.kernel_size[0] - 1) - 1) / self.stride[0] + 1
-            )
-            res_size[1] = math.floor(
-                (res_size[1]+2*self.padding[1] - self.dilation[1] * (self.kernel_size[1] - 1) - 1) / self.stride[1] + 1
-            )
-        self.fc = nn.Linear(num_channels * res_size[0] * res_size[1], num_classes)
+        x=torch.empty((1,in_channels, self.img_size[0], self.img_size[1]))
+        res_size = self.forward_conv(x).shape
+        fc_in = torch.prod(torch.tensor(res_size))
+        if self.num_fc_layers > 1:
+            self.fc = nn.Sequential()
+            self.fc.append(nn.Linear(fc_in, fc_dim))
+            self.fc.append(self._activation_func)
+            for i in range(self.num_fc_layers-1):
+                self.fc.append(nn.Linear(self.fc_dim, self.fc_dim))
+                self.fc.append(self._activation_func)
+            self.fc.append(nn.Linear(self.fc_dim, num_classes))
+        else:
+            self.fc = nn.Linear(fc_in, num_classes)
 
-    def forward(self, x):
+    def forward_conv(self, x):
+        if self.spd !=1:
+            x = self.space_to_depth(x)
         x = self.conv1(x)
         x = self._activation_func(x)
+        if self.pooling_ks !=1:
+            x = self.pool(x)
 
         for conv_layer in self.extra_conv_layers:
+            if self.spd !=1:
+                x = self.space_to_depth(x)
             x = conv_layer(x)
             x = self._activation_func(x)
+            if self.pooling_ks !=1:
+                x = self.pool(x)
+        return x
+
+    def forward(self, x):
+        x = self.forward_conv(x)
 
         x = x.view(x.size(0), -1)  # Flatten the tensor
         x = self.fc(x)
@@ -80,14 +111,26 @@ class SimpleCNN(BaseModel):
 
     def get_sequential(self): # TODO: how to add skip connections here?
         seq = nn.Sequential()
+
+        if self.spd !=1:
+            seq.append(self.space_to_depth)
         seq.append(self.conv1)
         seq.append(self._activation_func)
+        if self.pooling_ks !=1:
+            seq.append(self.pool)
 
         for conv_layer in self.extra_conv_layers:
+            if self.spd !=1:
+                seq.append(self.space_to_depth)
             seq.append(conv_layer)
             seq.append(self._activation_func)
+            if self.pooling_ks !=1:
+                seq.append(self.pool)
         seq.append(nn.Flatten())
-        seq.append(self.fc)
+        if self.num_fc_layers > 1:
+            seq.extend(self.fc)
+        else:
+            seq.append(self.fc)
         seq.append(self.softmax)
         return seq
 
@@ -100,6 +143,8 @@ class SimpleCNN(BaseModel):
         return {
             "num_classes": self.num_classes,
             "num_layers": self.num_layers,
+            "num_fc_layers": self.num_fc_layers,
+            "fc_dim": self.fc_dim,
             "in_channels": self.in_channels,
             "num_channels": self.num_channels,
             "kernel_size": self.kernel_size,
@@ -109,4 +154,7 @@ class SimpleCNN(BaseModel):
             "separable": self.separable,
             "num_skip_layers": self.num_skip_layers,
             "gabor": self.gabor,
+            "pooling_ks": self.pooling_ks,
+            "spd": self.spd,
+            "pad_spd": self.pad_spd
         }

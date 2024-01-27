@@ -176,7 +176,7 @@ class space_to_depth(nn.Module):
          return torch.cat([x[..., ::2, ::2], x[..., 1::2, ::2], x[..., ::2, 1::2], x[..., 1::2, 1::2]], 1)
     
 class SpaceToDepth(nn.Module):
-    def __init__(self, dimension=1, factor=2, old_spd_reorder = False):
+    def __init__(self, dimension=1, factor=2, old_spd_reorder = False, pad=True):
         """
         Rearranges an input tensor such that the output size is scaled by factor and instead the pixels are rearranged into the channel domain.
         Output will have size (bs, in_channels*factor^2, w/factor, h/factor). Pads zeros if needed
@@ -185,27 +185,32 @@ class SpaceToDepth(nn.Module):
         self.d = dimension
         self.factor = factor
         self.old_spd_reorder = old_spd_reorder
+        self.pad = pad
 
     def forward(self, x):
         batch_size, channels, height, width = x.size()
         new_height = height // self.factor
         new_width = width // self.factor
 
-        # Calculate padding
-        if height % self.factor != 0:
-            new_height += 1
-            pad_height = max(0, new_height * self.factor - height)
-        else:
-            pad_height = 0
+        if self.pad:
+            # Calculate padding
+            if height % self.factor != 0:
+                new_height += 1
+                pad_height = max(0, new_height * self.factor - height)
+            else:
+                pad_height = 0
 
-        if width % self.factor != 0:
-            new_width += 1
-            pad_width = max(0, new_width * self.factor - width)
-        else:
-            pad_width = 0
+            if width % self.factor != 0:
+                new_width += 1
+                pad_width = max(0, new_width * self.factor - width)
+            else:
+                pad_width = 0
 
-        # Pad the input tensor
-        x = nn.functional.pad(x, (0, pad_width, 0, pad_height))
+            # Pad the input tensor
+            x = nn.functional.pad(x, (0, pad_width, 0, pad_height))
+        else:
+            # Cut the input tensor
+            x=x[:,:,:new_height*self.factor, :new_width*self.factor]
 
         # Reshape the tensor
         x = x.view(batch_size, channels, new_height, self.factor, new_width, self.factor)
