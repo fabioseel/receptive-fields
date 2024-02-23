@@ -145,6 +145,49 @@ class GaborConv2d(ModConv2d):
         g = g / (2 * math.pi * sigma ** 2)
         self.weight.data = g
 
+class StaggeredStridedConv2d(ModConv2d):
+    def __init__(
+        self,
+        in_channels,
+        out_channels,
+        kernel_size,
+        stride=1,
+        padding=0,
+        dilation=1,
+        bias=True,
+        padding_mode="zeros"
+    ):
+        """
+        A convolution that if a stride is applied will divide the convolution into several ones:
+        The product of the stride $n$ determines how many convolutions will be applied.
+        Each of the resulting convolutions produces $n_out_channels/n$ outputs.
+        For each of these convolutions the starting point is changed, such that they become misaligned and even though stride is applied,
+        effectively only a single pixel is skipped between the convolutions.
+        """
+        super(StaggeredStridedConv2d, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation, bias)
+        self.n_shifts_x = self.stride[0]
+        self.n_shifts_y = self.stride[1]
+        n_shifts_total = self.n_shifts_x*self.n_shifts_y
+        n_channels_per_conv = out_channels // n_shifts_total
+        remain_channels = out_channels - (n_shifts_total-1)*n_channels_per_conv
+        self.pad = nn.ZeroPad2d((self.n_shifts_x//2+self.padding[0], self.n_shifts_x//2+self.padding[0], self.n_shifts_y//2+self.padding[1], self.n_shifts_y//2+self.padding[1]))
+        # TODO: Unite "Paddings"
+        self.convs = nn.ModuleList([nn.Conv2d(self.in_channels, remain_channels, self.kernel_size, self.stride, padding=0, dilation=self.dilation, bias=self.bias, padding_mode=padding_mode)])
+        for i in range(n_shifts_total-1):
+            self.convs.append(nn.Conv2d(self.in_channels, n_channels_per_conv, self.kernel_size, self.stride, padding=0, dilation=self.dilation, bias=self.bias, padding_mode=padding_mode))
+        
+    def forward(self, x):
+        out = []
+        eff_in_size = (x.shape[-2]+self.padding[0]*2, x.shape[-1]+self.padding[1]*2)
+        x = self.pad(x)
+        # eff_in_size = (x.shape[-2]-self.stride[0],x.shape[-1]-self.stride[1])
+        for x_shift in range(self.stride[0]):
+            for y_shift in range(self.stride[1]):
+                cur_inp = x[:,:,x_shift:x_shift+eff_in_size[0],y_shift:y_shift+eff_in_size[1]]
+                out.append(self.convs[x_shift+(self.stride[0])*y_shift](cur_inp))
+        x = torch.concat(out, dim=1)
+        return x
+
 class DepthwiseSeparableConv2d(ModConv2d):
     def __init__(
         self,
@@ -299,7 +342,7 @@ class ResConv2d(ModConv2d):
         out = self.stacked_convs(x)
         return out + self.center_crop(x, out.shape)
 
-def get_convolution(in_channels, num_channels, kernel_size, stride, padding, dilation, separable=False, num_skip_layers=None, gabor=False):
+def get_convolution(in_channels, num_channels, kernel_size, stride, padding, dilation, separable=False, num_skip_layers=None, gabor=False, misaligned=False):
     if num_skip_layers is not None:
         return ResConv2d(in_channels, num_channels, kernel_size, num_skip_layers, stride, padding, dilation= dilation, separable=separable)
     elif separable:
@@ -308,6 +351,10 @@ def get_convolution(in_channels, num_channels, kernel_size, stride, padding, dil
         )
     elif gabor:
         return GaborConv2d(
+            in_channels, num_channels, kernel_size, stride, padding, dilation=dilation
+        )
+    elif misaligned:
+        return StaggeredStridedConv2d(
             in_channels, num_channels, kernel_size, stride, padding, dilation=dilation
         )
     else:
