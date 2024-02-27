@@ -25,6 +25,7 @@ class SimpleCNN(BaseModel):
         separable=False,
         num_skip_layers=None,
         gabor=False,
+        staggered = False,
         activation="relu",
         pooling_ks = 1,
         spd = 1,
@@ -44,18 +45,19 @@ class SimpleCNN(BaseModel):
         self.separable = separable
         self.num_skip_layers=num_skip_layers
         self.gabor=gabor
+        self.staggered = staggered
         self.pooling_ks = pooling_ks
         self.spd = spd
         self.pad_spd = pad_spd
 
-        assert not(gabor and separable)
+        assert not(gabor and separable and staggered)
 
         self.space_to_depth = SpaceToDepth(factor=self.spd, pad=self.pad_spd)
         self.pool = nn.AvgPool2d(kernel_size=self.pooling_ks)
 
         # Define the first convolutional layer
         self.conv1 = get_convolution(
-            in_channels*self.spd**2, num_channels, kernel_size, stride, padding, dilation, separable, num_skip_layers, gabor
+            in_channels*self.spd**2, num_channels, kernel_size, stride, padding, dilation, separable, num_skip_layers, gabor, self.staggered
         )
         self.softmax = nn.Softmax(dim=-1)
 
@@ -64,7 +66,7 @@ class SimpleCNN(BaseModel):
         for _ in range(num_layers - 1):
             self.extra_conv_layers.append(
                 get_convolution(
-                    num_channels*self.spd**2, num_channels, kernel_size, stride, padding, dilation, separable, num_skip_layers, gabor
+                    num_channels*self.spd**2, num_channels, kernel_size, stride, padding, dilation, separable, num_skip_layers, gabor, self.staggered
                 )
             )
 
@@ -154,6 +156,7 @@ class SimpleCNN(BaseModel):
             "separable": self.separable,
             "num_skip_layers": self.num_skip_layers,
             "gabor": self.gabor,
+            "staggered": self.staggered,
             "pooling_ks": self.pooling_ks,
             "spd": self.spd,
             "pad_spd": self.pad_spd
