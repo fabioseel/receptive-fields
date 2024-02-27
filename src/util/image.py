@@ -2,6 +2,7 @@ from skimage.transform import resize
 from scipy import optimize
 import numpy as np
 from scipy.ndimage import gaussian_filter
+from scipy.fftpack import fftn
 
 def _resize(inp, shape, method='pad_crop', fill_value=None):
     if fill_value is None:
@@ -58,7 +59,7 @@ def gabor_kernel(shape=(128, 128), frequency=0.2, theta=0, sigma_x=1, sigma_y=1,
     sinusoid = np.cos(2 * np.pi * frequency * x_theta + phase_offset)
     
     gabor_kernel = envelope * sinusoid
-    return gabor_kernel
+    return gabor_kernel * factor + offset
 
 def _gabor_fit_mse_loss(params, image, theta, sigma_x, sigma_y):
     resulting_kernel = gabor_kernel(image.shape, frequency=1.0/params[0], theta=theta, sigma_x=sigma_x, sigma_y=sigma_y, phase_offset=params[1], factor = params[2], offset = params[3])
@@ -67,12 +68,32 @@ def _gabor_fit_mse_loss(params, image, theta, sigma_x, sigma_y):
     return mse
 
 def fit_gabor_filter(image, wavelength=None, theta=None, phase_offset=0,  maxiter=100):
-    if theta is None:
-        theta = detect_angle(image)
-    if wavelength is None:
-        _min = np.array(np.unravel_index(image.real.argmin(), image.real.shape))
-        _max = np.array(np.unravel_index(image.real.argmax(), image.real.shape))
-        wavelength = np.sqrt(np.sum((_max-_min)**2))*2
+    if theta is None or wavelength is None:
+
+        frequencies = fftn(image)
+
+        m = np.array(image.shape)//2+1
+
+        reordered = np.vstack([frequencies[m[0]:],frequencies[:m[0]]])
+        reordered = np.hstack([reordered[:,m[1]:],reordered[:,:m[1]]])
+
+        argm = np.unravel_index(np.argmax(np.abs(reordered)), shape=reordered.shape)
+        sign = np.sign(reordered[argm].real)
+        diff = argm-np.array(frequencies.shape)//2
+        dist = np.linalg.norm(diff,2)
+        if theta is None:
+            if dist >0:
+                theta_sign = np.sign(diff[1]*diff[0])
+                if theta_sign == 0:
+                    theta_sign=1
+                theta = theta_sign*np.arccos(np.abs(diff[1])/dist)
+            else:
+                theta =0 # if the max frequency is the constant part, the angle does not matter anyway...
+        if wavelength is None:
+            if dist > 0:
+                wavelength = (frequencies.shape[0]/dist)
+            else:
+                wavelength = frequencies.shape[0]*2 # somewhat arbitrarily chose, could be infinity
 
     amplitude, x0, y0, sigma_x, sigma_y, offset = _fit_gaussian_2d(np.abs(image), theta=-theta, maxiter=maxiter) # theta flip bc gaussian kernel rotates mathematically positive (anticlockwise), but gabor kernel defined differently 
 
@@ -88,8 +109,7 @@ def fit_gabor_filter(image, wavelength=None, theta=None, phase_offset=0,  maxite
 def detect_angle(image, n_thetas=180):
     tmp_image = np.copy(image)
     tmp_image[np.abs(image)<np.quantile(np.abs(image), 0.9)]=0
-    thetas = (np.array([i+0.5 for i in range(n_thetas)])/n_thetas*2*np.pi - np.pi)/2
-    h, theta, d = weighted_hough_line(tmp_image, theta=thetas)
+    h, theta, d = weighted_hough_line(tmp_image, theta=n_thetas)
     return thetas[np.argmax((h**2).sum(axis=0))]
 
 def gaussian_2d(xy, amplitude, x0, y0, sigma_x, sigma_y, offset, theta):
@@ -159,8 +179,8 @@ def weighted_hough_line(img: np.ndarray,
     ----------
     img : (M, N) ndarray
         Input image with nonzero values representing edges.
-    theta : 1D ndarray of float6411
-        Angles at which to compute the transform, in radians.
+    theta : 1D ndarray of float64 or int
+        Angles/number of angles at which to compute the transform, in radians.
 
     Returns
     -------
@@ -199,6 +219,8 @@ def weighted_hough_line(img: np.ndarray,
 
     """
     # Compute the array of angles and their sine and cosine
+    if isinstance(theta, int):
+        theta = (np.array([i+0.5 for i in range(theta)])/theta*2*np.pi - np.pi)/2
     ctheta = np.cos(theta)
     stheta = np.sin(theta)
 
@@ -214,11 +236,17 @@ def weighted_hough_line(img: np.ndarray,
 
     nidxs = y_idxs.shape[0]  # x and y are the same shape
     nthetas = theta.shape[0]
+    div = np.zeros_like(accum)
     for i in range(nidxs):
         x = x_idxs[i]
         y = y_idxs[i]
         for j in range(nthetas):
             accum_idx = round((ctheta[j] * x + stheta[j] * y)) + offset
             accum[accum_idx, j] += img[y,x]
+            div[accum_idx, j] +=1
+
+    div[div==0]=1
+
+    accum /= div
 
     return accum, theta, bins
