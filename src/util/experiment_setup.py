@@ -94,7 +94,8 @@ def setup_dataset_transforms(enable_img_transforms: bool, min_resize: float, max
         transf.append(RandomResize((min_resize, max_resize)))
         if add_background == "rl":
             bg = PIL.Image.open("../resources/empty-viewport.png").convert("RGB")
-            bg = bg.resize(img_size)
+            if img_size is not None:
+                bg = bg.resize(img_size)
         else:
             bg = torch.zeros((3, *img_size[::-1]))
         transf.append(ComposeImage(bg))
