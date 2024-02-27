@@ -110,7 +110,7 @@ def detect_angle(image, n_thetas=180):
     tmp_image = np.copy(image)
     tmp_image[np.abs(image)<np.quantile(np.abs(image), 0.9)]=0
     h, theta, d = weighted_hough_line(tmp_image, theta=n_thetas)
-    return thetas[np.argmax((h**2).sum(axis=0))]
+    return theta[np.argmax((h**2).sum(axis=0))]
 
 def gaussian_2d(xy, amplitude, x0, y0, sigma_x, sigma_y, offset, theta):
     x, y = xy
