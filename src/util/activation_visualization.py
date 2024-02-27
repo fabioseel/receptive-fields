@@ -32,7 +32,7 @@ def multiplot(eff_rfs, color=True, individ_rescale = True, max_plots = 64, plots
     if len(eff_rfs)==1:
         eff_rf = rescaleZeroOne(eff_rfs[0])
         if len(eff_rf.shape) == 3:
-            eff_rf=eff_rf.swapaxes(0,2)
+            eff_rf=eff_rf.movedim(0,2)
         else:
             eff_rf=eff_rf[0]
         plt.imshow(eff_rf, vmin=0, vmax=1, cmap="gray")
@@ -49,7 +49,7 @@ def multiplot(eff_rfs, color=True, individ_rescale = True, max_plots = 64, plots
                 min_max = np.abs(eff_rf).numpy().max()
                 eff_rf = (eff_rf+min_max)/(2*min_max)
             if len(eff_rf.shape) == 3:
-                eff_rf=eff_rf.swapaxes(0,2)
+                eff_rf=eff_rf.movedim(0,2)
             ax.imshow(eff_rf, vmin=0, vmax=1, cmap="gray")
             ax.set_title(str(i))
             if individ_rescale:
@@ -157,11 +157,15 @@ def remove_padding(model: nn.Sequential):
 def effective_receptive_field(model: nn.Sequential, n_batch: int = 2048, fill_value: float=None, rf_size: tuple=None, device=None):
     '''
     if fill value is given a single 'empty' input of that value is used
+    if fill value is an image, the individual contribution for the respective neuron will be calculated
     '''
     model = remove_padding(model).to(device)
+
     num_outputs, input_size = get_input_output_shape(model)
-    if rf_size is not None:
-        input_size=rf_size
+    if isinstance(fill_value, torch.Tensor):
+        input_size=fill_value.shape[1:]
+    elif rf_size is not None:
+            input_size=rf_size
     results = torch.zeros((num_outputs, *input_size))
     for i in tqdm(range(num_outputs)):
         output_signal = torch.zeros(num_outputs, device=device)
@@ -185,7 +189,11 @@ def single_effective_receptive_field(
     '''
     model.eval()
     if fill_value is not None:
-        input_tensor = torch.full((1, *input_size), fill_value=fill_value, requires_grad=True, device=device)
+        if isinstance(fill_value, torch.Tensor):
+            input_tensor = fill_value.to(device)
+            input_tensor.requires_grad = True
+        else:
+            input_tensor = torch.full((1, *input_size), fill_value=fill_value, requires_grad=True, device=device)
     else:
         input_tensor = torch.randn((n_batch, *input_size), requires_grad=True, device=device)
     output = model(input_tensor)
