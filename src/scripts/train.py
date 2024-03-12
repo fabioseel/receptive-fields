@@ -49,7 +49,7 @@ if args.save_hist:
     if not os.path.exists(filepath):
         os.mkdir(filepath)
 
-train_data, test_data = load_dataset(args.dataset, True, True, args.enable_img_transforms, args.min_resize, args.max_resize, args.add_background, model.in_channels==1, model.img_size)
+train_data, test_data = load_dataset(args.dataset, True, True, args.enable_img_transforms, args.min_resize, args.max_resize, args.add_background, model.in_channels==1, model.img_size, args.mean, args.std)
 
 train_loader = DataLoader(train_data, batch_size=args.batch_size, shuffle=True, num_workers=4, prefetch_factor=4)
 test_loader = DataLoader(test_data, batch_size=args.batch_size, shuffle=False, num_workers=4, prefetch_factor=4)
