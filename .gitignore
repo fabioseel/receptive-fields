@@ -171,3 +171,5 @@ imgs/**/*.gif
 imgs/**/*.png
 *.pdf
 doc/**/*.png
+resources/example_rfs*/*
+autolabels.json
