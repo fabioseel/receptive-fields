@@ -36,8 +36,14 @@ class ComposeImage(torch.nn.Module):
             width = img.shape[-1]
             height = img.shape[-2]
 
-        assert width <= self.bg_width
-        assert height <= self.bg_height
+        if width > self.bg_width:
+            height = int(round(height*self.bg_width/width))
+            width = self.bg_width
+            img = F.resize(img, (height, width))
+        elif height > self.bg_height:
+            width = int(round(width * self.bg_height/height))
+            height = self.bg_height
+            img = F.resize(img, (height, width))
 
         w_start = self.rng.randint(0, self.bg_width-width)
         h_start = self.rng.randint(0, self.bg_height-height)

@@ -124,6 +124,12 @@ def load_dataset(dataset:str = "cifar10", train_data:bool = True, test_data:bool
             train_set = datasets.STL10(root=data_root, split="train", download=True, transform=transf)
         if test_data:
             test_set = datasets.STL10(root=data_root, split="test", download=True, transform=transf)
+    elif dataset == "imagenette":
+        if train_data:
+            transf = setup_dataset_transforms(enable_img_transforms, min_resize, max_resize, add_background, grayscale, img_size, mean=mean, std=std)
+            train_set = datasets.ImageFolder("../../../data/imagenette2-160/train", transform=transf)
+        if test_data:
+            test_set = datasets.ImageFolder("../../../data/imagenette2-160/val", transform=transf)
     else:
         transf = setup_dataset_transforms(enable_img_transforms, min_resize, max_resize, add_background, grayscale, img_size if img_size != 32 else None, mean=mean, std=std)
         if train_data:
