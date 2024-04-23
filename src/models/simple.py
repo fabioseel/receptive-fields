@@ -16,6 +16,7 @@ class SimpleCNN(BaseModel):
         num_layers=3,
         num_fc_layers = 1,
         fc_dim = 128,
+        fc_in_size=None,
         in_channels=3,
         num_channels=16,
         kernel_size=3,
@@ -36,7 +37,10 @@ class SimpleCNN(BaseModel):
         self.num_layers = num_layers
         self.num_fc_layers = num_fc_layers
         self.fc_dim = fc_dim
+        self.fc_in_size = fc_in_size
         self.in_channels = in_channels
+        if isinstance(num_channels, int):
+            num_channels = [num_channels for _ in range(num_layers)]
         self.num_channels = num_channels
         self.kernel_size = kernel_size
         self.stride = stride
@@ -54,19 +58,21 @@ class SimpleCNN(BaseModel):
 
         self.space_to_depth = SpaceToDepth(factor=self.spd, pad=self.pad_spd)
         self.pool = nn.AvgPool2d(kernel_size=self.pooling_ks)
+        if self.fc_in_size != None:
+            self.last_pool = nn.AdaptiveAvgPool2d(output_size=fc_in_size)
 
         # Define the first convolutional layer
         self.conv1 = get_convolution(
-            in_channels*self.spd**2, num_channels, kernel_size, stride, padding, dilation, separable, num_skip_layers, gabor, self.staggered
+            in_channels*self.spd**2, num_channels[0], kernel_size, stride, padding, dilation, separable, num_skip_layers, gabor, self.staggered
         )
         self.softmax = nn.Softmax(dim=-1)
 
         # Define additional convolutional layers if needed
         self.extra_conv_layers = nn.ModuleList()
-        for _ in range(num_layers - 1):
+        for i in range(num_layers - 1):
             self.extra_conv_layers.append(
                 get_convolution(
-                    num_channels*self.spd**2, num_channels, kernel_size, stride, padding, dilation, separable, num_skip_layers, gabor, self.staggered
+                    num_channels[i]*self.spd**2, num_channels[i+1], kernel_size, stride, padding, dilation, separable, num_skip_layers, gabor, self.staggered
                 )
             )
 
@@ -90,16 +96,18 @@ class SimpleCNN(BaseModel):
             x = self.space_to_depth(x)
         x = self.conv1(x)
         x = self._activation_func(x)
-        if self.pooling_ks !=1:
-            x = self.pool(x)
 
         for conv_layer in self.extra_conv_layers:
+            if self.pooling_ks !=1:
+                x = self.pool(x)
             if self.spd !=1:
                 x = self.space_to_depth(x)
             x = conv_layer(x)
             x = self._activation_func(x)
-            if self.pooling_ks !=1:
-                x = self.pool(x)
+        if self.fc_in_size != None:
+            x = self.last_pool(x)
+        elif self.pooling_ks !=1:
+            x = self.pool(x)
         return x
 
     def forward(self, x):
@@ -118,16 +126,18 @@ class SimpleCNN(BaseModel):
             seq.append(self.space_to_depth)
         seq.append(self.conv1)
         seq.append(self._activation_func)
-        if self.pooling_ks !=1:
-            seq.append(self.pool)
 
         for conv_layer in self.extra_conv_layers:
+            if self.pooling_ks !=1:
+                seq.append(self.pool)
             if self.spd !=1:
                 seq.append(self.space_to_depth)
             seq.append(conv_layer)
             seq.append(self._activation_func)
-            if self.pooling_ks !=1:
-                seq.append(self.pool)
+        if self.fc_in_size != None:
+            seq.append(self.last_pool)
+        elif self.pooling_ks !=1:
+            seq.append(self.pool)
         seq.append(nn.Flatten())
         if self.num_fc_layers > 1:
             seq.extend(self.fc)
@@ -147,6 +157,7 @@ class SimpleCNN(BaseModel):
             "num_layers": self.num_layers,
             "num_fc_layers": self.num_fc_layers,
             "fc_dim": self.fc_dim,
+            "fc_in_size": self.fc_in_size,
             "in_channels": self.in_channels,
             "num_channels": self.num_channels,
             "kernel_size": self.kernel_size,
