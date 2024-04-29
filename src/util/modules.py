@@ -4,6 +4,7 @@ from torch import nn
 from torch.nn import Parameter
 from torch.nn.modules.utils import _pair
 from abc import ABC
+import copy
 
 class NamedFromSequential(nn.Module):
     """
@@ -21,7 +22,7 @@ class NamedFromSequential(nn.Module):
             else:
                 mod_count[mod_name] +=1
             attr_name = mod_name+"_"+str(mod_count[mod_name])
-            self.__setattr__(attr_name, module)
+            self.__setattr__(attr_name, copy.deepcopy(module))
             self.module_names.append(attr_name)
     
     def forward(self, x):
