@@ -5,6 +5,30 @@ from torch.nn import Parameter
 from torch.nn.modules.utils import _pair
 from abc import ABC
 
+class NamedFromSequential(nn.Module):
+    """
+    When initialized with a torch.nn.Sequential Module, adds each of the modules in sequential as individual attributes to this module.
+    Helpful for usage with libraries that allow to access specific model layers via the attribute names
+    """
+    def __init__(self, seq_model: nn.Sequential):
+        super().__init__()
+        self.module_names = []
+        mod_count = {}
+        for module in seq_model:
+            mod_name = str(module.__class__)[:-2].split(".")[-1]
+            if mod_name not in mod_count.keys():
+                mod_count[mod_name] = 0
+            else:
+                mod_count[mod_name] +=1
+            attr_name = mod_name+"_"+str(mod_count[mod_name])
+            self.__setattr__(attr_name, module)
+            self.module_names.append(attr_name)
+    
+    def forward(self, x):
+        for attr_name in self.module_names:
+            x = self.__getattr__(attr_name)(x)
+        return x
+
 class ModConv2d(nn.Module, ABC):
     def __init__(
         self,
