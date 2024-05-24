@@ -30,7 +30,9 @@ class SimpleCNN(BaseModel):
         activation="relu",
         pooling_ks = 1,
         spd = 1,
-        pad_spd=True
+        pad_spd=True,
+        symconv=False,
+        kanconv=False,
     ):
         super(SimpleCNN, self).__init__(img_size, activation)
         self.num_classes = num_classes
@@ -39,31 +41,31 @@ class SimpleCNN(BaseModel):
         self.fc_dim = fc_dim
         self.fc_in_size = fc_in_size
         self.in_channels = in_channels
-        if isinstance(num_channels, int):
-            num_channels = [num_channels for _ in range(num_layers)]
-        self.num_channels = num_channels
-        self.kernel_size = kernel_size
-        self.stride = stride
+        self.num_channels = self.assert_list(num_channels, self.num_layers)
+        self.kernel_size = self.assert_list(kernel_size, self.num_layers)
+        self.stride = self.assert_list(stride, self.num_layers)
         self.padding = _pair(padding)
         self.dilation = _pair(dilation)
         self.separable = separable
         self.num_skip_layers=num_skip_layers
         self.gabor=gabor
         self.staggered = staggered
-        self.pooling_ks = pooling_ks
+        self.pooling_ks = self.assert_list(pooling_ks, self.num_layers)
         self.spd = spd
         self.pad_spd = pad_spd
+        self.symconv = symconv
+        self.kanconv = kanconv
 
         assert not(gabor and separable and staggered)
 
         self.space_to_depth = SpaceToDepth(factor=self.spd, pad=self.pad_spd)
-        self.pool = nn.AvgPool2d(kernel_size=self.pooling_ks)
+        self.pool = [nn.AvgPool2d(kernel_size=self.pooling_ks[i]) for i in range(self.num_layers)]
         if self.fc_in_size != None:
-            self.last_pool = nn.AdaptiveAvgPool2d(output_size=fc_in_size)
+            self.pool[-1] = nn.AdaptiveAvgPool2d(output_size=fc_in_size)
 
         # Define the first convolutional layer
         self.conv1 = get_convolution(
-            in_channels*self.spd**2, num_channels[0], kernel_size, stride, padding, dilation, separable, num_skip_layers, gabor, self.staggered
+            in_channels*self.spd**2, self.num_channels[0], self.kernel_size[0], self.stride[0], padding, dilation, separable, num_skip_layers, gabor, self.staggered, symconv=self.symconv, kanconv = self.kanconv
         )
         self.softmax = nn.Softmax(dim=-1)
 
@@ -72,7 +74,7 @@ class SimpleCNN(BaseModel):
         for i in range(num_layers - 1):
             self.extra_conv_layers.append(
                 get_convolution(
-                    num_channels[i]*self.spd**2, num_channels[i+1], kernel_size, stride, padding, dilation, separable, num_skip_layers, gabor, self.staggered
+                    self.num_channels[i]*self.spd**2, self.num_channels[i+1], self.kernel_size[i+1], self.stride[i+1], padding, dilation, separable, num_skip_layers, gabor, self.staggered, symconv=self.symconv, kanconv = self.kanconv
                 )
             )
 
@@ -91,23 +93,33 @@ class SimpleCNN(BaseModel):
         else:
             self.fc = nn.Linear(fc_in, num_classes)
 
+    @staticmethod
+    def assert_list(list_candidate, len_list, dtype = int):
+        if isinstance(list_candidate, dtype):
+            _list = [list_candidate] * len_list
+        else:
+            assert len(list_candidate) == len_list
+            _list = list_candidate
+        return _list
+            
+
     def forward_conv(self, x):
         if self.spd !=1:
             x = self.space_to_depth(x)
         x = self.conv1(x)
         x = self._activation_func(x)
 
-        for conv_layer in self.extra_conv_layers:
-            if self.pooling_ks !=1:
-                x = self.pool(x)
+        for pool_ks, pool, conv_layer in zip(self.pooling_ks[:-1], self.pool[:-1], self.extra_conv_layers):
+            if pool_ks !=1:
+                x = pool(x)
             if self.spd !=1:
                 x = self.space_to_depth(x)
             x = conv_layer(x)
             x = self._activation_func(x)
         if self.fc_in_size != None:
-            x = self.last_pool(x)
-        elif self.pooling_ks !=1:
-            x = self.pool(x)
+            x = self.pool[-1](x)
+        elif self.pooling_ks[-1] !=1:
+            x = self.pool[-1](x)
         return x
 
     def forward(self, x):
@@ -127,17 +139,17 @@ class SimpleCNN(BaseModel):
         seq.append(self.conv1)
         seq.append(self._activation_func)
 
-        for conv_layer in self.extra_conv_layers:
-            if self.pooling_ks !=1:
-                seq.append(self.pool)
+        for pool_ks, pool, conv_layer in zip(self.pooling_ks[:-1], self.pool[:-1], self.extra_conv_layers):
+            if pool_ks !=1:
+                seq.append(pool)
             if self.spd !=1:
                 seq.append(self.space_to_depth)
             seq.append(conv_layer)
             seq.append(self._activation_func)
         if self.fc_in_size != None:
-            seq.append(self.last_pool)
-        elif self.pooling_ks !=1:
-            seq.append(self.pool)
+            seq.append(self.pool[-1])
+        elif self.pooling_ks[-1] !=1:
+            seq.append(self.pool[-1])
         seq.append(nn.Flatten())
         if self.num_fc_layers > 1:
             seq.extend(self.fc)
@@ -170,5 +182,7 @@ class SimpleCNN(BaseModel):
             "staggered": self.staggered,
             "pooling_ks": self.pooling_ks,
             "spd": self.spd,
-            "pad_spd": self.pad_spd
+            "pad_spd": self.pad_spd,
+            "symconv": self.symconv,
+            "kanconv": self.kanconv
         }

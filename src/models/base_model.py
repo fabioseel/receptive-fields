@@ -79,7 +79,7 @@ class BaseModel(nn.Module, ABC):
         return model
 
     @property
-    def img_size(self) -> [int, int]:
+    def img_size(self) -> "tuple[int, int]":
         return self._img_size
     @img_size.setter
     def img_size(self, value):
